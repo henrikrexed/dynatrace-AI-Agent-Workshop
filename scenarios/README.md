@@ -38,12 +38,14 @@ It has **no `k8s_delete_resource`**; nothing here grants new destructive power.
 | `01-crashloopbackoff` | start command exits non-zero on launch | **pod logs** + exit code | — |
 | `02-imagepullbackoff` | non-existent image tag | **pod events** (`Failed to pull image`) | — |
 | `03-oomkilled` | memory limit far below demand | **`lastState.terminated.reason: OOMKilled`** | — |
-| `12-intermittent-5xx` | a faulty `product-catalog` backend joins the Service | **Dynatrace problem + Davis root cause** | `otel-demo` |
+| `12-intermittent-5xx` | a faulty `product-catalog` backend joins the Service | **Service endpoints + gRPC/5xx errors** (kubectl + OTel) | `otel-demo` |
 
 The three infra scenarios sit on **distinct evidence channels** on purpose — a
 cross-channel claim (e.g. "it's OOM" for the crash-loop) is an unambiguous fail, so
 a small model (DeepSeek-V3) can be graded objectively. Scenario 12 is the
-**Dynatrace-correlation money shot** and is opt-in (see below).
+app-tier **multi-service endpoint-fault showcase** and is opt-in (see below) — the
+SRE agent diagnoses it from cluster state + OTel signals (`kubectl get endpoints`,
+frontend gRPC/5xx logs), not a Dynatrace-tool query.
 
 ## Usage
 
@@ -96,9 +98,10 @@ Exit codes (downstream grades against these — ISI-6846 §2):
 
 ## Scenario 12 — opt-in app dependency
 
-Scenario 12 drives the lighter OTel Demo fork `opentelemetry-demo-light` and needs
-Dynatrace to show the correlation. It is **opt-in** so the base workshop and
-scenarios 01–03 fit the 4-core/16 GB Codespace floor:
+Scenario 12 drives the lighter OTel Demo fork `opentelemetry-demo-light` — a
+multi-service app where the fault surfaces as intermittent 5xx on the product path.
+It is **opt-in** so the base workshop and scenarios 01–03 fit the 4-core/16 GB
+Codespace floor:
 
 The platform stack is already installed (module 01), so this is a **single Helm
 install** of just the demo app:
@@ -118,6 +121,6 @@ unavailable.
 > **Mechanism note:** the asset contract (ISI-6846 §4.4) assumed scenario 12 would
 > flip a **flagd** feature flag. The selected `opentelemetry-demo-light` fork ships
 > **no flagd**, so `12-`'s `inject.sh` instead adds a faulty `product-catalog`
-> backend to the Service (same observable: intermittent 5xx correlated in
-> Dynatrace). This revised mechanism is pending live validation against the ISI-6847
-> deploy.
+> backend to the Service (same observable: intermittent 5xx on the frontend →
+> product-catalog path). This revised mechanism is pending live validation against
+> the ISI-6847 deploy.
