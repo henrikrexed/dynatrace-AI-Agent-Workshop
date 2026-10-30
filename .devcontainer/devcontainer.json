@@ -37,7 +37,7 @@
       "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
     },
     "DT_PLATFORM_TOKEN": {
-      "description": "Dynatrace PLATFORM token (dt0s16) for the SRE MCP + dtctl. Distinct from DT_API_TOKEN.",
+      "description": "Dynatrace PLATFORM token (dt0s16) for dtctl. Distinct from DT_API_TOKEN.",
       "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
     },
     "DT_ENVIRONMENT": {

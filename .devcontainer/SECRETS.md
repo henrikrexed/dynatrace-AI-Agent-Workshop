@@ -22,22 +22,18 @@ a secret, **rebuild or restart the Codespace** so the new value is injected.
 | `LLM_API_KEY` / `DEEPSEEK_API_KEY` | Model-provider key that powers the kagent agents. **DeepSeek by default** (Phase 3, cost-efficient; `secret/kagent-deepseek`). `DEEPSEEK_API_KEY` is preferred; `LLM_API_KEY` is the generic fallback and should hold the DeepSeek key when DeepSeek is the provider. | `sk-...` (DeepSeek) |
 | `GH_DEMO_REPO` | The **BMAD/"bad crew"** demo repository the GitHub MCP writes to (issues/PRs). Explicit var so the environment test can assert it. | `owner/repo` or full URL |
 
-## Phase 3 / 5 — Dynatrace platform (`dtctl` + Dynatrace MCP)
+## Phase 3 / 5 — Dynatrace platform (`dtctl`)
 
-Both the **Dynatrace MCP server** (`@dynatrace-oss/dynatrace-mcp-server`, SRE
-agent) and the **`dtctl` CLI** (Phase 5 optimization — dashboards, notebooks,
-SRG, workflows) authenticate against the Dynatrace **platform**, which uses a
-different token and URL than the Phase-2 operator/OTLP pair above. They share
-**one** platform token:
+The **`dtctl` CLI** (Phase 5 optimization — dashboards, notebooks, SRG,
+workflows) authenticates against the Dynatrace **platform**, which uses a
+different token and URL than the Phase-2 operator/OTLP pair above:
 
 | Variable | Purpose | Example / format |
 |----------|---------|------------------|
-| `DT_PLATFORM_TOKEN` | Dynatrace **platform** token for the SRE agent's Dynatrace tools (problems/entities/logs/metrics) **and** `dtctl`. Distinct from `DT_API_TOKEN`. | `dt0s16.XXXX...` |
-| `DT_ENVIRONMENT` | Dynatrace **platform (apps)** URL used by the MCP and `dtctl`. If unset, `agents/install-agents.sh` derives it from `DT_TENANT_URL` by swapping `.live.`→`.apps.`. | `https://abc12345.apps.dynatrace.com` |
+| `DT_PLATFORM_TOKEN` | Dynatrace **platform** token for `dtctl`. Distinct from `DT_API_TOKEN`. | `dt0s16.XXXX...` |
+| `DT_ENVIRONMENT` | Dynatrace **platform (apps)** URL used by `dtctl`. If unset, it is derived from `DT_TENANT_URL` by swapping `.live.`→`.apps.`. | `https://abc12345.apps.dynatrace.com` |
 
-For the MCP, these are injected at **apply time** by `agents/install-agents.sh`
-(into the kagent-managed MCP server pods) — not stored as long-lived cluster
-secrets. `dtctl` reads them from the environment / its own context config.
+`dtctl` reads these from the environment / its own context config.
 
 ## Phase 4 — dt-evals (trace-sourced LLM-as-judge)
 

@@ -116,10 +116,11 @@ fetch spans
     Each tool is a JSON schema injected into every prompt. On the reference
     tenant one captured `call_llm` request carried **7** tool declarations costing
     **~1,160 input tokens** — about **165 tokens per tool, on every call**. The
-    shipped SRE agent (`agents/sre/sre-agent.yaml`) attaches the Dynatrace MCP
-    server with **no `toolNames` filter** (every discovered tool) *plus* 15 k8s
-    tools. Pin `toolNames` to the handful the traces prove it uses and you reclaim
-    those tokens on all 1,357 calls — before touching anything else.
+    shipped SRE agent (`agents/sre/sre-agent.yaml`) attaches the built-in
+    `kagent-tool-server` with **no `toolNames` filter**, so every discovered k8s
+    and networking tool rides along — far more than a diagnosis actually calls.
+    Pin `toolNames` to the handful the traces prove it uses and you reclaim those
+    tokens on all 1,357 calls — before touching anything else.
 
 Re-apply (`bash agents/install-agents.sh`), send the same prompts, and compare
 input-token counts in Dynatrace. Fewer tools → smaller prompts → lower cost on

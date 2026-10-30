@@ -89,7 +89,7 @@ page above. Reference: GitHub's
 |--------|:---:|---------|
 | `DT_TENANT_URL` | ✅ | Dynatrace tenant URL, e.g. `https://abc12345.live.dynatrace.com`. |
 | `DT_API_TOKEN` | ✅ | Dynatrace **ingest** token (traces/metrics/logs) — OTLP export + DynaKube `dataIngestToken`. See token **A** below. |
-| `DT_PLATFORM_TOKEN` | ✅ | Dynatrace **platform** token (`dt0s16`) for the SRE MCP + `dtctl` — token **B**. |
+| `DT_PLATFORM_TOKEN` | ✅ | Dynatrace **platform** token (`dt0s16`) for `dtctl` — token **B**. |
 | `DYNATRACE_API_TOKEN` | ✅ | Dynatrace **operator + dt-evals** token — the DynaKube `apiToken` (Kubernetes-monitoring scopes) **and** the Phase-4 dt-evals token. See token **C**. Distinct from `DT_API_TOKEN`. |
 | `DEEPSEEK_API_KEY` | ✅ | DeepSeek LLM key powering the agents — token **D**. (Fallback var: `LLM_API_KEY`.) |
 | `GH_PAT` | ✅ | GitHub fine-grained PAT for the demo write-back — token **E**. |
@@ -128,8 +128,8 @@ token **C**).
 
 ### B. Dynatrace platform token → `DT_PLATFORM_TOKEN`
 
-Used by the **Dynatrace MCP server** (the SRE agent's tools: problems, entities,
-logs, metrics) and the `dtctl` CLI in the optimization module.
+Used by the `dtctl` CLI in the optimization module (module 07) to push the
+dashboard, notebook, Site Reliability Guardian, and workflow to your tenant.
 
 - **Type:** platform token, prefix `dt0s16`.
 - **Create it:** at

@@ -9,12 +9,14 @@ answer against a ground-truth key.
 
 !!! info "Nothing new to install"
     This module reuses the **module-02 `sre-agent`** exactly as-is. It already
-    has the right surface — read/investigate tools (`k8s_get_resources`,
-    `k8s_describe_resource`, `k8s_get_pod_logs`, `k8s_get_events`), a minimal
-    non-destructive operate set (scale/patch/rollout), and the full Dynatrace
-    MCP — and a system prompt that *is* a "Findings → Root cause → Action →
-    Verify" SRE loop. Nothing here grants the agent new destructive power; there
-    is no `k8s_delete_resource`.
+    has the right surface — Kubernetes read/investigate tools
+    (`k8s_get_resources`, `k8s_describe_resource`, `k8s_get_pod_logs`,
+    `k8s_get_events`) and a minimal non-destructive operate set
+    (scale/patch/rollout) — and a system prompt that *is* a "Findings → Root
+    cause → Action → Verify" SRE loop. The agent is a **kubectl-only
+    investigator**: it reaches its conclusions from live cluster state, not from
+    an external observability tool. Nothing here grants the agent new
+    destructive power; there is no `k8s_delete_resource`.
 
 ## Why break things
 
@@ -45,14 +47,16 @@ ambiguity.
 - **SRE agent deployed** — module 02 (`sre-agent` in the `kagent` namespace).
   This is the only hard requirement for scenarios 01–03.
 - **(Scenario 12 only) Observe pipeline live** — module 04, plus the opt-in
-  `opentelemetry-demo-light` app. Scenario 12 is the Dynatrace-correlation
-  scenario and is **skippable** (see the callout below).
+  `opentelemetry-demo-light` app. Scenario 12 is the observability-correlation
+  scenario — the OTel signals surface the symptom and the agent root-causes it
+  in the cluster — and is **skippable** (see the callout below).
 
 !!! warning "Scenario 12 has an extra resource footprint — skippable on the minimum tier"
     Scenarios **01–03 are self-contained** and cost almost nothing: each spins up
     one throwaway Deployment. **Scenario 12 additionally needs the opt-in
-    `opentelemetry-demo-light` astronomy-shop app deployed** (and Dynatrace, to
-    show the correlation). On a **minimum 4-core / 16 GB Codespace, skip 12** and
+    `opentelemetry-demo-light` astronomy-shop app deployed** (and the observe
+    pipeline live, so the symptom shows up in your signals). On a **minimum
+    4-core / 16 GB Codespace, skip 12** and
     run 01–03 — you still get the full infra-diagnosis payoff. Only enable 12 if
     you have headroom. The platform stack is already installed (module 01), so
     this is a **single Helm install** of just the demo app:
@@ -175,33 +179,40 @@ Cleanup is one command and idempotent. For infra scenarios it deletes exactly th
 `workshop-faults` namespace; it never touches `kagent`, `dynatrace`, the demo
 app, or any platform namespace.
 
-## The Dynatrace money shot — scenario 12 (optional)
+## The partial-failure scenario — scenario 12 (optional)
 
-Scenarios 01–03 are diagnosable from **cluster state alone**. Scenario 12 is the
-one that shows off the workshop's real differentiator: the agent **correlating
-Kubernetes with Dynatrace**. A faulty `product-catalog` backend joins the
+Scenarios 01–03 are a single broken pod you can spot in a pod list. Scenario 12
+is the harder, more realistic shape: a **partial** failure that hides in a
+healthy-looking Service. A faulty `product-catalog` backend joins the
 `product-catalog` Service's endpoints, so a *fraction* of the astronomy shop's
 product requests are load-balanced to it and fail — **intermittent 5xx**, not a
-clean outage.
+clean outage. Nothing is `CrashLoopBackOff`; every pod reads `Running`.
+
+This is where your observe pipeline earns its keep. The intermittent errors
+surface first as **OTel signals** — the partial error rate on the product path
+shows up in your **Dynatrace** dashboards and in **Phoenix**, long before a pod
+list would hint at anything wrong. That signal is the *symptom*; the agent's job
+is to find the *cause* in cluster state.
 
 ```bash
 bash scenarios/run.sh inject 12      # adds a faulty product-catalog backend (via inject.sh)
 ```
 
-Paste `scenarios/12-intermittent-5xx/prompt.md` and point the agent at
-**Dynatrace**:
+Paste `scenarios/12-intermittent-5xx/prompt.md`. You point the agent at the
+symptom you observed; it investigates with `kubectl`:
 
 > Users of the astronomy shop (namespace `otel-demo`) are seeing intermittent
-> errors when they browse products — some requests work, some fail. Use
-> Dynatrace to find the open problem and its Davis root cause, correlate it with
-> the cluster state, and tell me which service is actually at fault and why.
+> errors when they browse products — some requests work, some fail, and every
+> pod looks `Running`. Investigate the `otel-demo` namespace with `kubectl`,
+> find the root cause, and tell me which service is actually at fault and why.
 
-A correct answer cites an **open Dynatrace problem** on the product path, names
-**`product-catalog`** as the **Davis root-cause entity** (not the frontend that
-merely surfaces it), notes the failures are **intermittent** (a partial error
-rate), and corroborates with k8s that the `product-catalog` Service has an
-**extra, unhealthy backend** in rotation. Grade against its
-`expected-diagnosis.md` (`pass_threshold: 4`). Clean up with:
+A correct answer names **`product-catalog`** as the service at fault, explains
+the failures are **intermittent** because only a *fraction* of requests are
+load-balanced to the bad endpoint, and cites the k8s evidence: the
+`product-catalog` Service has an **extra, unhealthy backend** in its endpoint
+rotation (`kubectl get endpoints`, pod readiness) — not the frontend that merely
+surfaces the errors. Grade against its `expected-diagnosis.md`
+(`pass_threshold: 4`). Clean up with:
 
 ```bash
 bash scenarios/run.sh cleanup 12     # removes only the faulty backend — never the healthy demo

@@ -28,7 +28,7 @@ kagent ships a handful of CRDs. In this workshop you only need four of them:
 | `ModelConfig` | Which LLM an agent talks to (provider, model, endpoint, secret). | [`agents/mcp/00-modelconfig.yaml`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/agents/mcp/00-modelconfig.yaml) — the shared `workshop-llm` (DeepSeek). |
 | `Agent` | A deployed agent: a system prompt + a `ModelConfig` + the tools it may call. | the SRE agent and the six BMAD agents (module 02). |
 | `MCPServer` | A tool server that runs **inside** the cluster (stdio or HTTP). | GitHub MCP (module 02). |
-| `RemoteMCPServer` | A reference to a tool server reached over the network, whose tools kagent discovers. | the built-in `kagent-tool-server`, Dynatrace MCP (module 02). |
+| `RemoteMCPServer` | A reference to a tool server reached over the network, whose tools kagent discovers. | the built-in `kagent-tool-server`, GitHub MCP (module 02). |
 
 Everything else — the controller, the UI, the bundled database, and `kmcp` (the
 MCP plumbing) — runs for you once the platform is installed (module 01).
