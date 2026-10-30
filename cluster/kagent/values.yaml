@@ -42,6 +42,12 @@ providers:
   openAI:
     provider: OpenAI
     model: deepseek-chat
+    # NOTE: `apiKeySecretRef` here is the kagent *chart values* key (not the CRD
+    # field). The 0.10.4 chart template (templates/modelconfig.yaml) reads this
+    # value and renders it as the CRD's `apiKeySecret` field. Do NOT rename this
+    # to `apiKeySecret` — the template guards on `$model.apiKeySecretRef`, so a
+    # rename would silently drop the secret reference. The raw CR in
+    # agents/mcp/00-modelconfig.yaml correctly uses the CRD field `apiKeySecret`.
     apiKeySecretRef: kagent-deepseek
     apiKeySecretKey: DEEPSEEK_API_KEY
     config:
