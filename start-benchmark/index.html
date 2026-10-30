@@ -896,7 +896,7 @@ page above. Reference: GitHub's
 <tr>
 <td><code>DT_PLATFORM_TOKEN</code></td>
 <td style="text-align: center;">✅</td>
-<td>Dynatrace <strong>platform</strong> token (<code>dt0s16</code>) for the SRE MCP + <code>dtctl</code> — token <strong>B</strong>.</td>
+<td>Dynatrace <strong>platform</strong> token (<code>dt0s16</code>) for <code>dtctl</code> — token <strong>B</strong>.</td>
 </tr>
 <tr>
 <td><code>DYNATRACE_API_TOKEN</code></td>
@@ -951,8 +951,8 @@ token <strong>C</strong>).</p>
 <li><strong>Docs:</strong> <a href="https://docs.dynatrace.com/docs/manage/identity-access-management/access-tokens-and-oauth-clients/access-tokens">Dynatrace access tokens</a>.</li>
 </ul>
 <h3 id="b-dynatrace-platform-token-dt_platform_token">B. Dynatrace platform token → <code>DT_PLATFORM_TOKEN</code><a class="headerlink" href="#b-dynatrace-platform-token-dt_platform_token" title="Permanent link">&para;</a></h3>
-<p>Used by the <strong>Dynatrace MCP server</strong> (the SRE agent's tools: problems, entities,
-logs, metrics) and the <code>dtctl</code> CLI in the optimization module.</p>
+<p>Used by the <code>dtctl</code> CLI in the optimization module (module 07) to push the
+dashboard, notebook, Site Reliability Guardian, and workflow to your tenant.</p>
 <ul>
 <li><strong>Type:</strong> platform token, prefix <code>dt0s16</code>.</li>
 <li><strong>Create it:</strong> at
@@ -962,7 +962,7 @@ logs, metrics) and the <code>dtctl</code> CLI in the optimization module.</p>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Three distinct Dynatrace tokens</p>
-<p><code>DT_PLATFORM_TOKEN</code> (SRE MCP + <code>dtctl</code>) is <strong>not</strong> the same as <code>DT_API_TOKEN</code>
+<p><code>DT_PLATFORM_TOKEN</code> (<code>dtctl</code>) is <strong>not</strong> the same as <code>DT_API_TOKEN</code>
 (ingest) or <code>DYNATRACE_API_TOKEN</code> (DynaKube operator + dt-evals). They
 authenticate against different Dynatrace surfaces — keep all three separate.</p>
 </div>

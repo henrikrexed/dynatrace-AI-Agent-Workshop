@@ -924,10 +924,11 @@ against its granted set:</p>
 <p>Each tool is a JSON schema injected into every prompt. On the reference
 tenant one captured <code>call_llm</code> request carried <strong>7</strong> tool declarations costing
 <strong>~1,160 input tokens</strong> — about <strong>165 tokens per tool, on every call</strong>. The
-shipped SRE agent (<code>agents/sre/sre-agent.yaml</code>) attaches the Dynatrace MCP
-server with <strong>no <code>toolNames</code> filter</strong> (every discovered tool) <em>plus</em> 15 k8s
-tools. Pin <code>toolNames</code> to the handful the traces prove it uses and you reclaim
-those tokens on all 1,357 calls — before touching anything else.</p>
+shipped SRE agent (<code>agents/sre/sre-agent.yaml</code>) attaches the built-in
+<code>kagent-tool-server</code> with <strong>no <code>toolNames</code> filter</strong>, so every discovered k8s
+and networking tool rides along — far more than a diagnosis actually calls.
+Pin <code>toolNames</code> to the handful the traces prove it uses and you reclaim those
+tokens on all 1,357 calls — before touching anything else.</p>
 </div>
 <p>Re-apply (<code>bash agents/install-agents.sh</code>), send the same prompts, and compare
 input-token counts in Dynatrace. Fewer tools → smaller prompts → lower cost on
