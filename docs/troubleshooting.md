@@ -57,6 +57,29 @@ kubectl get dynakube -n dynatrace
 kubectl -n dynatrace get pods            # operator, webhook, activegate Ready
 ```
 
+**DynaKube stuck in `Error` / `ScopeMissing`.** `kubectl describe dynakube -n
+dynatrace` shows conditions such as `ActiveGateConnectionInfo … DynatraceApiError`,
+`MonitoredEntity … settings:objects:write … ScopeMissing`, or
+`MetadataEnrichmentRules … missing scopes`. Cause: `DT_API_TOKEN` was created with
+the **ingest scopes only**. The operator reuses that same token, so it also needs
+the Kubernetes-monitoring scopes — classic: `activeGateTokenManagement.create`,
+`entities.read`, `settings.read`, `settings.write`; platform (`dt0s16`):
+`fleet-management:activegate.tokens:create`,
+`fleet-management:activegate.connection-info:read`, `settings:objects:read`,
+`settings:objects:write` (see [Token A](start-benchmark.md#4-create-the-required-tokens)).
+No new Codespace secret is needed — add the scopes to the existing `DT_API_TOKEN`.
+Fix:
+
+```bash
+# After adding the k8s-monitoring scopes to DT_API_TOKEN (or regenerating it):
+bash cluster/secrets.sh                              # refresh secret/dynakube
+# Or patch the refreshed token straight in without a redeploy:
+#   kubectl -n dynatrace patch secret dynakube --type merge \
+#     -p "{\"stringData\":{\"apiToken\":\"<token>\"}}"
+kubectl -n dynatrace delete pod -l app.kubernetes.io/name=activegate  # re-read token
+kubectl get dynakube -n dynatrace                    # Phase should go Running
+```
+
 **OTel operator hangs applying the collector CR.** The operator must use its
 self-signed webhook cert (`autoGenerateCert`), already set in
 [`otel/operator-values.yaml`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/otel/operator-values.yaml).
