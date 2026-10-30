@@ -10,12 +10,6 @@
 #   GH_PAT         fine-grained PAT scoped to the ONE demo repo
 #                      (Contents RW · Issues RW · Pull requests RW; NO org/admin).
 #                      Required for the BMAD crew to touch GitHub.
-#   DT_PLATFORM_TOKEN  Dynatrace platform token (dt0s16.*) for the SRE agent's
-#                      Dynatrace MCP tools. Optional — without it the dynatrace
-#                      tools install but return auth errors.
-#   DT_ENVIRONMENT     Dynatrace platform (apps) URL, e.g.
-#                      https://abc12345.apps.dynatrace.com. If unset, derived from
-#                      DT_TENANT_URL by swapping .live. -> .apps.
 #
 # Idempotent: every step is `kubectl apply`, so re-running reconciles.
 set -euo pipefail
@@ -40,30 +34,21 @@ if ! kubectl -n kagent get remotemcpserver kagent-tool-server >/dev/null 2>&1; t
 fi
 
 # --- credentials ------------------------------------------------------------
-export GITHUB_MCP_IMAGE DYNATRACE_MCP_IMAGE DYNATRACE_MCP_NODE_IMAGE DYNATRACE_MCP_PACKAGE
+export GITHUB_MCP_IMAGE
 # Accept GITHUB_TOKEN (Codespaces injects one) as a fallback for GH_PAT. A
 # fine-grained PAT scoped to the demo repo is strongly preferred for the write demo.
 export GH_PAT="${GH_PAT:-${GITHUB_TOKEN:-}}"
-export DT_PLATFORM_TOKEN="${DT_PLATFORM_TOKEN:-}"
-# Derive the platform (apps) URL from the Phase-2 tenant URL if not given.
-if [ -z "${DT_ENVIRONMENT:-}" ] && [ -n "${DT_TENANT_URL:-}" ]; then
-  DT_ENVIRONMENT="${DT_TENANT_URL/.live./.apps.}"
-  warn "DT_ENVIRONMENT not set — derived ${DT_ENVIRONMENT} from DT_TENANT_URL (override by exporting DT_ENVIRONMENT)."
-fi
-export DT_ENVIRONMENT="${DT_ENVIRONMENT:-}"
 
 [ -n "${GH_PAT}" ]        || warn "GH_PAT unset — BMAD crew installs but GitHub tools will not authenticate."
-[ -n "${DT_PLATFORM_TOKEN}" ] || warn "DT_PLATFORM_TOKEN unset — SRE agent installs but Dynatrace tools will not authenticate."
 
 # Only these vars are substituted; every other $ in the manifests is left intact.
-SUBST_VARS='${GITHUB_MCP_IMAGE} ${GH_PAT} ${DYNATRACE_MCP_IMAGE} ${DYNATRACE_MCP_NODE_IMAGE} ${DYNATRACE_MCP_PACKAGE} ${DT_ENVIRONMENT} ${DT_PLATFORM_TOKEN}'
+SUBST_VARS='${GITHUB_MCP_IMAGE} ${GH_PAT}'
 
-# --- 1/3  MCP layer: shared ModelConfig + GitHub + Dynatrace tool servers ----
-# Applied file-by-file (NOT via kustomize): kustomize round-trips flow scalars and
-# would re-emit the Dynatrace package arg (@dynatrace-oss/...) unquoted → invalid
-# YAML. envsubst on the raw files preserves the quoting.
-log "1/3  MCP wiring (workshop-llm ModelConfig + GitHub + Dynatrace MCP servers)"
-for f in 00-modelconfig.yaml 10-github-mcp.yaml 20-dynatrace-mcp.yaml; do
+# --- 1/3  MCP layer: shared ModelConfig + GitHub tool server -----------------
+# Applied file-by-file (NOT via kustomize) so envsubst can inject the ${...}
+# token/image placeholders on the raw files before apply.
+log "1/3  MCP wiring (workshop-llm ModelConfig + GitHub MCP server)"
+for f in 00-modelconfig.yaml 10-github-mcp.yaml; do
   envsubst "${SUBST_VARS}" < "${SCRIPT_DIR}/mcp/${f}" | kubectl apply -f -
 done
 ok "MCP layer applied"
@@ -87,7 +72,6 @@ cat <<'EOF'
    kubectl -n kagent get mcpserver,remotemcpserver
    kubectl -n kagent get remotemcpserver kagent-tool-server   -o jsonpath='{.status.discoveredTools[*].name}'; echo
    kubectl -n kagent get remotemcpserver github-mcp-remote     -o jsonpath='{.status.discoveredTools[*].name}'; echo
-   kubectl -n kagent get remotemcpserver dynatrace-mcp-remote  -o jsonpath='{.status.discoveredTools[*].name}'; echo
 
  Verify the agents are Accepted:
    kubectl -n kagent get agents
