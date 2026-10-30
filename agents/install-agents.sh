@@ -40,7 +40,7 @@ if ! kubectl -n kagent get remotemcpserver kagent-tool-server >/dev/null 2>&1; t
 fi
 
 # --- credentials ------------------------------------------------------------
-export GITHUB_MCP_IMAGE DYNATRACE_MCP_NODE_IMAGE DYNATRACE_MCP_PACKAGE
+export GITHUB_MCP_IMAGE DYNATRACE_MCP_IMAGE DYNATRACE_MCP_NODE_IMAGE DYNATRACE_MCP_PACKAGE
 # Accept GITHUB_TOKEN (Codespaces injects one) as a fallback for GH_PAT. A
 # fine-grained PAT scoped to the demo repo is strongly preferred for the write demo.
 export GH_PAT="${GH_PAT:-${GITHUB_TOKEN:-}}"
@@ -56,7 +56,7 @@ export DT_ENVIRONMENT="${DT_ENVIRONMENT:-}"
 [ -n "${DT_PLATFORM_TOKEN}" ] || warn "DT_PLATFORM_TOKEN unset — SRE agent installs but Dynatrace tools will not authenticate."
 
 # Only these vars are substituted; every other $ in the manifests is left intact.
-SUBST_VARS='${GITHUB_MCP_IMAGE} ${GH_PAT} ${DYNATRACE_MCP_NODE_IMAGE} ${DYNATRACE_MCP_PACKAGE} ${DT_ENVIRONMENT} ${DT_PLATFORM_TOKEN}'
+SUBST_VARS='${GITHUB_MCP_IMAGE} ${GH_PAT} ${DYNATRACE_MCP_IMAGE} ${DYNATRACE_MCP_NODE_IMAGE} ${DYNATRACE_MCP_PACKAGE} ${DT_ENVIRONMENT} ${DT_PLATFORM_TOKEN}'
 
 # --- 1/3  MCP layer: shared ModelConfig + GitHub + Dynatrace tool servers ----
 # Applied file-by-file (NOT via kustomize): kustomize round-trips flow scalars and
