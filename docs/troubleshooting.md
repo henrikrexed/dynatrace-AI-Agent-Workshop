@@ -110,6 +110,42 @@ kubectl -n kagent logs deploy/kagent-controller
   (the `.apps.dynatrace.com` URL) — **distinct** from the module 01 OTLP
   `DT_API_TOKEN`.
 
+**Dynatrace MCP `initialize` times out / `context deadline exceeded`.** The SRE
+agent's tool discovery fails and the agent runtime logs:
+
+```
+failed to extract tools from the tool set "mcp_tool_set": failed to list MCP tools:
+failed to init MCP session: calling "initialize": sending "initialize":
+rejected by transport: Post "http://dynatrace-mcp.kagent:3000/mcp":
+context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+```
+
+The Dynatrace MCP stdio server didn't answer the `initialize` handshake before
+the client timeout. The usual cause was a **cold-start npm fetch**: the server
+used to run `npx -y @dynatrace-oss/dynatrace-mcp-server` at pod start, which
+downloaded the package on first launch and could exceed the timeout on a fresh /
+slow Codespace. The workshop now ships a **pre-baked image**
+(`ghcr.io/henrikrexed/dynatrace-mcp-server`, pinned as `DYNATRACE_MCP_IMAGE` in
+`cluster/versions.env`) so the `mcp-server-dynatrace` binary starts instantly —
+pull the latest manifests and re-run `bash agents/install-agents.sh`.
+
+If it still times out, rule out the other two causes:
+
+```bash
+kubectl -n kagent get mcpserver,remotemcpserver
+kubectl -n kagent get pods -l workshop.tool=dynatrace   # pod Ready? not ImagePull/CrashLoop?
+kubectl -n kagent logs  -l workshop.tool=dynatrace      # server start + auth errors
+kubectl -n kagent describe remotemcpserver dynatrace-mcp-remote
+```
+
+- **Image won't pull** (`ImagePullBackOff`) — the pre-baked image must be
+  reachable; confirm the tag in `DYNATRACE_MCP_IMAGE` exists and is public.
+- **Missing/invalid platform creds** — a tokenless server can hang during init.
+  `DT_PLATFORM_TOKEN` (`dt0s16.*`) and `DT_ENVIRONMENT` (the `.apps.` URL) must be
+  set when `agents/install-agents.sh` runs (see the token note above).
+- **Genuinely slow Grail/DQL init** — bump `timeout` on
+  `RemoteMCPServer/dynatrace-mcp-remote` (default `60s`) and re-apply.
+
 **An `Agent` isn't `Accepted`.** Usually a bad `ModelConfig` or missing model
 secret.
 
