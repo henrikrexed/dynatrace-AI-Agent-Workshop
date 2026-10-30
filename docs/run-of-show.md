@@ -1,9 +1,9 @@
-# Run of show — the guided 13-step demo
+# Run of show — the guided 14-step demo
 
 This page is the **single, top-to-bottom script** for the live demo. It stitches
 the workshop's modules into one continuous run: configure an agent, investigate a
-cluster, turn on observability, evaluate the results, and close the
-observe → evaluate → optimize loop. Each step is deliberately short — just enough
+cluster, catch it reading a secret, turn on observability, evaluate the results,
+and close the observe → evaluate → optimize loop. Each step is deliberately short — just enough
 to *do* it — and links to the full module when you want the depth behind it.
 
 !!! info "How to read this page"
@@ -80,13 +80,51 @@ kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent
 
 **Apply this.** You should get a grounded answer naming real pods — the agent
 called `k8s_get_resources`, it did not guess. Keep this first run; you'll compare
-its trace against the re-run in Step 4.
+its trace against the re-run in Step 5.
 
 **Go deeper.** [02 — Agents & MCP wiring](02-agents-mcp.md#5-send-a-sample-prompt).
 
 ---
 
-## Step 3 — Show the observability configuration in the collector
+## Step 3 — Catch the agent reading a secret (Tetragon)
+
+**What & why.** The agent is alive — now prove you can *see* it misbehave. A
+prompt-injected agent's first move is to grab credentials: the service-account
+token, a mounted secret, `/etc/shadow`. Tetragon (installed in module 01) watches
+the kernel with eBPF, so it catches that read the instant it happens — something
+admission control can never see because the pod is already running and compliant.
+
+**Do it.** Apply the ready-made detection policy, then watch the filtered stream:
+
+```bash
+kubectl apply -f cluster/tetragon/sensitive-file-access.yaml
+kubectl -n agent-sandbox get tracingpolicynamespaced   # detect-sensitive-file-access
+
+kubectl -n tetragon exec ds/tetragon -c tetragon -- \
+  tetra getevents -o compact --namespace agent-sandbox
+```
+
+**Apply this.** In a second terminal, schedule a compliant pod that reads its own
+service-account token — exactly what a credential-stealing agent would do:
+
+```bash
+kubectl -n agent-sandbox run snoop --image=busybox:1.36 --restart=Never \
+  --overrides='{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"]}]}}' \
+  --command -- sh -c "cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"
+
+kubectl -n agent-sandbox delete pod snoop --ignore-not-found   # clean up; leave the policy running
+```
+
+The first terminal prints a `process_kprobe` line for `security_file_permission`
+on the `snoop` pod, naming `cat` and the token path — your detection firing. The
+pod ran clean under Pod Security *and* was caught reading a credential, because
+runtime detection sees what admission cannot.
+
+**Go deeper.** [03 — Secure agents](03-secure.md#detect-an-agent-reading-sensitive-files).
+
+---
+
+## Step 4 — Show the observability configuration in the collector
 
 **What & why.** Every answer the agent just gave already emitted spans. The
 **gateway collector** is what turns those raw LLM/tool spans into clean,
@@ -152,7 +190,7 @@ model, token, and latency fields. The `traces` pipeline exports to Dynatrace
 
 ---
 
-## Step 4 — Re-run the SRE investigation
+## Step 5 — Re-run the SRE investigation
 
 **What & why.** Now that everyone has seen the pipeline, run the agent again — this
 time to *generate traces on purpose*. Same agent, slightly broader prompt, so there
@@ -169,13 +207,13 @@ kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent
 
 **Apply this.** Within a few seconds this run is a trace in both backends: an
 `agent.run` span wrapping `gen_ai` LLM calls and `k8s` tool calls, each carrying
-input/output token counts and latency. That trace is what Steps 5 and 6 inspect.
+input/output token counts and latency. That trace is what Steps 6 and 7 inspect.
 
 **Go deeper.** [04 — Observe with Dynatrace](04-observe.md#1-generate-some-traffic).
 
 ---
 
-## Step 5 — Open Phoenix and create one evaluation
+## Step 6 — Open Phoenix and create one evaluation
 
 **What & why.** Observability shows *what* the agent did; evaluation scores
 *whether it was any good*. Phoenix is the fast, visual, exploratory judge — open it
@@ -184,7 +222,7 @@ and run one LLM-as-a-judge evaluation over the traces you just made.
 **Do it.** Phoenix is already forwarded on port **6006** — so **open it first**:
 
 1. Open the Phoenix UI → **[http://localhost:6006](http://localhost:6006)**. Each
-   agent run from Step 4 is an LLM trace: prompt, response, tool spans, token
+   agent run from Step 5 is an LLM trace: prompt, response, tool spans, token
    counts. Click one to see its `gen_ai.*` attributes. This is the surface you'll
    configure the evaluation against and read the scores back from.
 2. From the `evals/` project, run the LLM-as-a-judge eval. The bundled dataset
@@ -208,7 +246,7 @@ opened in step 1. It also drops a CSV at
 
 ---
 
-## Step 6 — Open Dynatrace: traces + AI Observability
+## Step 7 — Open Dynatrace: traces + AI Observability
 
 **What & why.** Same spans, production-grade backend. Dynatrace adds **estimated
 cost**, a full distributed-trace waterfall, and correlation with cluster health —
@@ -235,7 +273,7 @@ Click into a request to see `gen_ai` LLM spans and `k8s` tool spans nested under
 
 ---
 
-## Step 7 — Create an evaluation using dt-evals
+## Step 8 — Create an evaluation using dt-evals
 
 **What & why.** Phoenix was exploratory; **dt-evals** is the CI-friendly path. It
 samples `gen_ai.*` spans straight from Dynatrace, masks PII, scores each with a
@@ -269,7 +307,7 @@ the run **exit non-zero on a breach** — a ready-made CI gate.
 
 ---
 
-## Step 8 — Run the BMAD investigation
+## Step 9 — Run the BMAD investigation
 
 **What & why.** So far it's been the single SRE agent. Now show the other side of
 the platform: the **BMAD crew** — a six-member orchestrated workflow (analyst → PM
@@ -288,15 +326,15 @@ kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent
 **Apply this.** In the trace you'll see the orchestrator's **A2A hops** to each
 crew member as nested spans, and the developer agent using the **GitHub MCP** tools
 to open issues, push a branch, and raise a PR. This is the multi-agent run whose
-hop-count and token spend you'll scrutinise in Step 12.
+hop-count and token spend you'll scrutinise in Step 13.
 
 **Go deeper.** [02 — Agents & MCP wiring](02-agents-mcp.md#5-send-a-sample-prompt).
 
 ---
 
-## Step 9 — Review the Phoenix evaluation
+## Step 10 — Review the Phoenix evaluation
 
-**What & why.** Close the loop you opened in Step 5: read the scores. Phoenix is
+**What & why.** Close the loop you opened in Step 6: read the scores. Phoenix is
 where you *discover failure modes* interactively.
 
 **Do it.** In the Phoenix UI (`http://localhost:6006`), open the traces you graded.
@@ -314,9 +352,9 @@ UI.
 
 ---
 
-## Step 10 — Review the dt-evals results
+## Step 11 — Review the dt-evals results
 
-**What & why.** The dt-evals run from Step 7 wrote its scores into Dynatrace as
+**What & why.** The dt-evals run from Step 8 wrote its scores into Dynatrace as
 bizevents. Read them with DQL — this is the queryable, alertable, CI-gated view of
 quality.
 
@@ -337,9 +375,9 @@ click from the trace, prompt, and tool calls that produced it — and the run al
 
 ---
 
-## Step 11 — Deploy the notebook
+## Step 12 — Deploy the notebook
 
-**What & why.** You've measured cost (Step 6) and quality (Steps 9–10). The
+**What & why.** You've measured cost (Step 7) and quality (Steps 10–11). The
 optimize module ships a ready-made Dynatrace **notebook** that computes every
 optimization signal from your crew's `gen_ai.*` spans — deploy it so the next DQL
 steps run against a real surface, not a blank page.
@@ -362,7 +400,7 @@ input tokens per `call_llm`. (The companion **dashboard**,
 
 ---
 
-## Step 12 — Build DQL queries: tool usage + token utilization
+## Step 13 — Build DQL queries: tool usage + token utilization
 
 **What & why.** This is the heart of optimization. Two questions answer "where is
 the waste?": **which tools does an agent actually call** (anything granted but never
@@ -404,7 +442,7 @@ is where to cut. This ranking is the raw material for the cuts in module 07.
 
 ---
 
-## Step 13 — Deploy the workflow
+## Step 14 — Deploy the workflow
 
 **What & why.** Optimization isn't a one-off. Because cost *and* quality are now
 both telemetry, the last artifact makes the loop **continuous**: a scheduled
@@ -433,8 +471,9 @@ schedule **disabled**; flip `trigger.schedule.isActive: true` to run it over the
 
 ## You've run the whole show
 
-In thirteen steps you configured an agent, investigated a cluster, exposed the
-telemetry pipeline, evaluated the results two ways, and closed the
+In fourteen steps you configured an agent, investigated a cluster, caught it
+reading a secret with runtime security, exposed the telemetry pipeline, evaluated
+the results two ways, and closed the
 **observe → evaluate → optimize** loop with queries and automation that keep the
 crew cost-efficient. For the depth behind any step, follow its **Go deeper** link —
 and when something misbehaves, the [Troubleshooting](troubleshooting.md) page
