@@ -152,6 +152,40 @@ Confirm kagent `otel.tracing` points at
 `otel-gateway-collector.opentelemetry-operator-system.svc:4317`, and that the
 tenant/token scopes include `openTelemetryTrace.ingest`.
 
+**Gateway logs `HTTP Status Code 404` / `Unimplemented` exporting to Dynatrace.**
+The spans reach the collector but Dynatrace rejects the request:
+
+```
+error  Exporting failed. Dropping data.  {"otelcol.component.id": "otlphttp/dynatrace", ...
+  "error": "... request to https://<env>.apps.dynatrace.com/api/v2/otlp/v1/traces
+  responded with HTTP Status Code 404", "dropped_items": 3}
+```
+
+The tell is the host: `.apps.dynatrace.com`. That is the **platform/apps** domain
+(the MCP + `dtctl` URL, `DT_ENVIRONMENT`) and it does **not** serve `/api/v2/otlp`.
+OTLP ingest lives on the **environment** domain, `.live.dynatrace.com`. Set
+`DT_TENANT_URL` to the `.live.` URL (e.g. `https://abc12345.live.dynatrace.com`)
+and re-provision — `cluster/install.sh` and `cluster/secrets.sh` now auto-correct
+an `.apps.` tenant to `.live.`, but a stale secret from a previous run must be
+refreshed:
+
+```bash
+bash cluster/secrets.sh                                           # rebuilds secret/dynatrace-otlp
+kubectl -n opentelemetry-operator-system rollout restart deploy/otel-gateway-collector
+kubectl -n opentelemetry-operator-system logs deploy/otel-gateway-collector | grep -i dynatrace
+```
+
+**Gateway logs `connection refused` to `phoenix.phoenix.svc...:4317` at startup.**
+Benign and self-healing — the gateway starts before Phoenix is Ready and retries.
+Once Phoenix is up the `otlp/phoenix` exporter connects and the warnings stop
+(the `debug` exporter also keeps logging span counts). Only investigate if it
+persists after `kubectl -n phoenix get pods` shows Phoenix `Running`.
+
+!!! note "`otlphttp`/`k8sattributes`/`resourcedetection` deprecation warnings"
+    `"otlphttp" alias is deprecated; use "otlp_http"` and the matching
+    `resource_detection` / `k8s_attributes` lines are informational in collector
+    0.161+. The old aliases still work — not an error, no action needed.
+
 ---
 
 ## Module 05 — Diagnose
