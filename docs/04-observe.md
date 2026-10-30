@@ -94,8 +94,7 @@ you additionally see the orchestrator's A2A hops to the analyst → PM → archi
 → developer → QA agents as nested spans.
 
 !!! tip "Build a cost view with DQL"
-    The Dynatrace MCP server (module 02) lets the SRE agent query this itself,
-    but you can also open **Notebooks** and run DQL against the spans, e.g. sum
+    Open **Notebooks** and run DQL against the spans, e.g. sum
     `gen_ai.usage.output_tokens` grouped by agent to rank your most expensive
     agents. That ranking is the raw material for module 07 (Optimize).
 

@@ -33,21 +33,19 @@ to *do* it — and links to the full module when you want the depth behind it.
 
 **What & why.** kagent shipped as a clean runtime in module 01. Here you turn on
 its built-in Kubernetes tooling, point it at a model, wire the **pre-deployed MCP
-servers**, and deploy the **SRE agent** — one idempotent script does all of it.
+server**, and deploy the **SRE agent** — one idempotent script does all of it.
 
-**Do it.** Supply the MCP credentials, then install:
+**Do it.** Supply the MCP credential, then install:
 
 ```bash
 export GH_PAT='github_pat_...'                              # fine-grained, one demo repo
-export DT_PLATFORM_TOKEN='dt0s16....'                       # Dynatrace platform token
-export DT_ENVIRONMENT='https://<env>.apps.dynatrace.com'    # platform apps URL
 
 bash agents/install-agents.sh
 ```
 
 The script applies, in order: the MCP layer (the shared **`workshop-llm`**
-ModelConfig — DeepSeek — plus the **GitHub** and **Dynatrace** MCP tool servers),
-then the **SRE agent**, then the BMAD crew. kagent's built-in
+ModelConfig — DeepSeek — plus the **GitHub** MCP tool server), then the
+**SRE agent**, then the BMAD crew. kagent's built-in
 **`kagent-tool-server`** (Kubernetes + networking tools) is already enabled in
 `cluster/kagent/values.yaml`.
 

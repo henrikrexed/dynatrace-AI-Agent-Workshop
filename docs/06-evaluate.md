@@ -191,7 +191,7 @@ to the trace. Details:
 
 | Agent | Good eval questions |
 |-------|---------------------|
-| **SRE agent** | Did it correctly identify the unhealthy pod? Did it call the right k8s/Dynatrace tool (not guess)? Was the diagnosis grounded in real tool output (no hallucinated pod names)? |
+| **SRE agent** | Did it correctly identify the unhealthy pod? Did it call the right k8s tool (not guess)? Was the diagnosis grounded in real tool output (no hallucinated pod names)? |
 | **BMAD crew** | Did the workflow produce the expected artifacts (issues → branch → PR)? Did the developer agent stay within its repo scope? Did it finish within a token budget? |
 
 ## What you achieved (acceptance)

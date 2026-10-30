@@ -2,41 +2,45 @@
 
 The `opentelemetry-demo-light` astronomy shop (namespace `otel-demo`) is throwing
 **intermittent** errors on the product/browse path. Ask the SRE agent to
-investigate — **do not tell it the root cause**. This is the correlation scenario:
-the agent must lean on **Dynatrace** (open problems, Davis root cause, the affected
-entity) and correlate it with cluster state, not guess from `kubectl` alone.
+investigate — **do not tell it the root cause**. This is the partial-failure
+scenario: the symptom surfaces in your **OTel signals** (the error rate on the
+product path in your Dynatrace dashboards and in Phoenix), and the agent must
+root-cause it in **cluster state with `kubectl`** — every pod reads `Running`, so
+a pod list alone won't reveal it.
 
 ## Drive it from the kagent UI
 
 Open the kagent UI (`http://localhost:8080`), pick **sre-agent**, and paste:
 
 > Users of the astronomy shop (namespace `otel-demo`) are seeing intermittent
-> errors when they browse products — some requests work, some fail. Use Dynatrace
-> to find the open problem and its Davis root cause, correlate it with the cluster
-> state, and tell me which service is actually at fault and why.
+> errors when they browse products — some requests work, some fail, and every pod
+> looks `Running`. Investigate the `otel-demo` namespace with `kubectl`, find the
+> root cause, and tell me which service is actually at fault and why.
 
 ## Drive it over A2A (curl)
 
 ```bash
 kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
   --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
-  --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"The astronomy shop in the otel-demo namespace is returning intermittent errors on the product browse path. Use Dynatrace to find the open problem and its Davis root cause, correlate it with the cluster state, and tell me which service is at fault and why. Cite the Dynatrace problem/entity you relied on."}]}}}' \
+  --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"The astronomy shop in the otel-demo namespace is returning intermittent errors on the product browse path, yet every pod looks Running. Investigate the namespace with kubectl, find the root cause, and tell me which service is at fault and why. Cite the k8s evidence (Service endpoints, pod readiness) you relied on."}]}}}' \
   http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
 ```
 
 ## What a correct answer looks like
 
-The agent should cite an **open Dynatrace problem** on the frontend/product path,
-name **`product-catalog`** as the **Davis root-cause entity** (not the frontend
-that merely surfaces it), note the errors are **intermittent** (a partial error
-rate, not a full outage), and corroborate with k8s that the `product-catalog`
-Service has an **extra, unhealthy backend** in rotation. Grade against
+The agent should name **`product-catalog`** as the service at fault (not the
+frontend that merely surfaces the errors), note the errors are **intermittent** (a
+partial error rate, not a full outage) because only a *fraction* of requests are
+load-balanced to the bad endpoint, and cite the k8s evidence: the
+`product-catalog` Service has an **extra, unhealthy backend** in its endpoint
+rotation (`kubectl get endpoints`, pod readiness). Grade against
 [`expected-diagnosis.md`](./expected-diagnosis.md).
 
 ## Prerequisite — the app must be deployed
 
-This scenario needs the opt-in demo app and Dynatrace. If `otel-demo` is not
-present, `inject` fails fast with the enable command:
+This scenario needs the opt-in demo app and a live observe pipeline (so the
+symptom shows up in your signals). If `otel-demo` is not present, `inject` fails
+fast with the enable command:
 
 ```bash
 helm upgrade --install otel-demo \
