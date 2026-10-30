@@ -38,8 +38,8 @@ echo "[Phase 2] Dynatrace operator + OTLP ingest"
 check DT_TENANT_URL required "Dynatrace tenant, e.g. https://abc12345.live.dynatrace.com"
 check DT_API_TOKEN  required "Dynatrace INGEST token (OTLP export + DynaKube dataIngestToken)"
 
-echo "[Phase 3/5] Dynatrace platform — dtctl + Dynatrace MCP (one platform token)"
-check DT_PLATFORM_TOKEN required "Dynatrace platform token (dt0s16) shared by dtctl and the Dynatrace MCP"
+echo "[Phase 3/5] Dynatrace platform — dtctl (platform token)"
+check DT_PLATFORM_TOKEN required "Dynatrace platform token (dt0s16) for dtctl"
 check DT_ENVIRONMENT    optional "platform apps URL (https://<env>.apps.dynatrace.com); derived from DT_TENANT_URL if unset"
 
 echo "[Phase 3] Agents LLM + GitHub MCP (BMAD 'bad crew')"

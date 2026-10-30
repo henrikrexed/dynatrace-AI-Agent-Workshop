@@ -7,8 +7,8 @@ and installs with one idempotent script.
 
 !!! info "What gets deployed"
     A shared **`workshop-llm`** ModelConfig (**DeepSeek**, OpenAI-API compatible),
-    the **GitHub** and **Dynatrace** MCP tool servers, an **SRE agent**, and the
-    six-member **BMAD crew**. kagent's built-in **`kagent-tool-server`** (default
+    the **GitHub** MCP tool server, an **SRE agent**, and the six-member
+    **BMAD crew**. kagent's built-in **`kagent-tool-server`** (default
     Kubernetes tooling) is turned on for this phase.
 
 ## The tool surfaces
@@ -16,7 +16,6 @@ and installs with one idempotent script.
 | Tool | Source | Agent |
 |------|--------|-------|
 | Kubernetes / `kubectl` + k8s-networking | built-in `kagent-tool-server` | SRE |
-| Dynatrace (problems, entities, logs/DQL, metrics, Davis) | `dynatrace-mcp-remote` | SRE |
 | GitHub (issues, PRs, repo contents) | `github-mcp-remote` | BMAD crew |
 
 All agents share one model: **`workshop-llm`** — **DeepSeek** (`deepseek-chat`,
@@ -40,27 +39,23 @@ to roll kagent and create the `kagent-tool-server`.
 
 ## 2. Provide the MCP credentials
 
-These are injected **at apply time** and never committed. You created them during
+This is injected **at apply time** and never committed. You created it during
 onboarding — see
 **[Start the benchmark → Create the required tokens](start-benchmark.md#4-create-the-required-tokens)**
-for the exact permissions and where each is generated:
+for the exact permissions and where it is generated:
 
 | Variable | Used by | Notes |
 |----------|---------|-------|
 | `GH_PAT` | GitHub MCP | Fine-grained PAT scoped to the **one** demo repo: Contents RW · Issues RW · Pull requests RW. No org/admin. ([token E](start-benchmark.md#e-github-fine-grained-pat-gh_pat)) |
-| `DT_PLATFORM_TOKEN` | Dynatrace MCP | Dynatrace **platform** token (`dt0s16.*`) — distinct from the module 01 OTLP `DT_API_TOKEN`. ([token B](start-benchmark.md#b-dynatrace-platform-token-dt_platform_token)) |
-| `DT_ENVIRONMENT` | Dynatrace MCP | Platform **apps** URL, e.g. `https://abc12345.apps.dynatrace.com`. Derived from `DT_TENANT_URL` (`.live.`→`.apps.`) if unset. |
 
 ```bash
 export GH_PAT='github_pat_...'
-export DT_PLATFORM_TOKEN='dt0s16....'
-export DT_ENVIRONMENT='https://<env>.apps.dynatrace.com'
 ```
 
 !!! warning "Token in pod env"
-    The GitHub/Dynatrace MCP servers receive their token as a pod env var
-    (kagent's `MCPServer` env is a static map). Scope the tokens tightly and
-    rotate them after the workshop.
+    The GitHub MCP server receives its token as a pod env var (kagent's
+    `MCPServer` env is a static map). Scope the token tightly and rotate it
+    after the workshop.
 
 ## 3. Install
 
@@ -68,8 +63,8 @@ export DT_ENVIRONMENT='https://<env>.apps.dynatrace.com'
 bash agents/install-agents.sh
 ```
 
-The script applies, in order: the MCP layer (ModelConfig + GitHub + Dynatrace),
-the SRE agent, then the BMAD crew.
+The script applies, in order: the MCP layer (ModelConfig + GitHub), the SRE
+agent, then the BMAD crew.
 
 ## 4. Verify the tools registered
 
@@ -77,7 +72,6 @@ the SRE agent, then the BMAD crew.
 kubectl -n kagent get mcpserver,remotemcpserver
 kubectl -n kagent get remotemcpserver kagent-tool-server  -o jsonpath='{.status.discoveredTools[*].name}'; echo
 kubectl -n kagent get remotemcpserver github-mcp-remote    -o jsonpath='{.status.discoveredTools[*].name}'; echo
-kubectl -n kagent get remotemcpserver dynatrace-mcp-remote -o jsonpath='{.status.discoveredTools[*].name}'; echo
 kubectl -n kagent get agents
 ```
 
