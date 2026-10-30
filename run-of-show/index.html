@@ -967,7 +967,16 @@ input/output token counts and latency. That trace is what Steps 5 and 6 inspect.
 <p><strong>What &amp; why.</strong> Observability shows <em>what</em> the agent did; evaluation scores
 <em>whether it was any good</em>. Phoenix is the fast, visual, exploratory judge — open it
 and run one LLM-as-a-judge evaluation over the traces you just made.</p>
-<p><strong>Do it.</strong> Phoenix is already forwarded on port <strong>6006</strong>. Run the bundled eval:</p>
+<p><strong>Do it.</strong> Phoenix is already forwarded on port <strong>6006</strong> — so <strong>open it first</strong>:</p>
+<ol>
+<li>Open the Phoenix UI → <strong><a href="http://localhost:6006">http://localhost:6006</a></strong>. Each
+   agent run from Step 4 is an LLM trace: prompt, response, tool spans, token
+   counts. Click one to see its <code>gen_ai.*</code> attributes. This is the surface you'll
+   configure the evaluation against and read the scores back from.</li>
+<li>From the <code>evals/</code> project, run the LLM-as-a-judge eval. The bundled dataset
+   works offline; <code>--from-phoenix</code> grades the <strong>live</strong> spans you just opened and
+   writes the labels back onto them:</li>
+</ol>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py<span class="w">                </span><span class="c1"># bundled sample dataset — just needs a judge key</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py<span class="w"> </span>--from-phoenix<span class="w"> </span><span class="c1"># grade the LIVE spans and annotate them in the UI</span>
@@ -975,7 +984,8 @@ and run one LLM-as-a-judge evaluation over the traces you just made.</p>
 <p><strong>Apply this.</strong> The script builds two judge classifiers — <strong>hallucination</strong> (is
 the answer grounded in its context?) and <strong>relevance</strong> (does it answer the
 question?). With <code>--from-phoenix</code> it writes the scores back onto the originating
-spans, so the labels appear on the traces in the Phoenix UI. It also drops a CSV at
+spans, so <strong>refresh the Phoenix UI</strong> and the labels now appear on the traces you
+opened in step 1. It also drops a CSV at
 <code>evals/phoenix/out/phoenix_eval_results.csv</code>.</p>
 <p><strong>Go deeper.</strong> <a href="../06-evaluate/#part-a-phoenix-explore-and-judge-live-traces">06 — Evaluate · Part A (Phoenix)</a>.</p>
 <hr />
