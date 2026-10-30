@@ -61,15 +61,21 @@ kubectl -n dynatrace get pods            # operator, webhook, activegate Ready
 dynatrace` shows conditions such as `ActiveGateConnectionInfo … DynatraceApiError`,
 `MonitoredEntity … settings:objects:write … ScopeMissing`, or
 `MetadataEnrichmentRules … missing scopes`. Cause: `DT_API_TOKEN` was created with
-the **OTLP ingest scopes only**. The operator reuses that same token, so it also
-needs the four Kubernetes-monitoring scopes —
-`activeGateTokenManagement.create`, `entities.read`, `settings.read`,
-`settings.write` (see [Token A](start-benchmark.md#4-create-the-required-tokens)).
+the **ingest scopes only**. The operator reuses that same token, so it also needs
+the Kubernetes-monitoring scopes — classic: `activeGateTokenManagement.create`,
+`entities.read`, `settings.read`, `settings.write`; platform (`dt0s16`):
+`fleet-management:activegate.tokens:create`,
+`fleet-management:activegate.connection-info:read`, `settings:objects:read`,
+`settings:objects:write` (see [Token A](start-benchmark.md#4-create-the-required-tokens)).
+No new Codespace secret is needed — add the scopes to the existing `DT_API_TOKEN`.
 Fix:
 
 ```bash
-# After adding the four scopes to the token (or regenerating it):
+# After adding the k8s-monitoring scopes to DT_API_TOKEN (or regenerating it):
 bash cluster/secrets.sh                              # refresh secret/dynakube
+# Or patch the refreshed token straight in without a redeploy:
+#   kubectl -n dynatrace patch secret dynakube --type merge \
+#     -p "{\"stringData\":{\"apiToken\":\"<token>\"}}"
 kubectl -n dynatrace delete pod -l app.kubernetes.io/name=activegate  # re-read token
 kubectl get dynakube -n dynatrace                    # Phase should go Running
 ```
