@@ -13,9 +13,9 @@
 #
 # ── Alternatives (swap here + the matching secret in cluster/secrets.sh) ──────
 #   OpenAI:    baseUrl: (drop it), model: gpt-4.1-mini,
-#              apiKeySecretRef: kagent-openai,  apiKeySecretKey: OPENAI_API_KEY
+#              apiKeySecret: kagent-openai,  apiKeySecretKey: OPENAI_API_KEY
 #   Anthropic: provider: Anthropic, model: <claude id>, swap openAI:{} -> anthropic:{},
-#              apiKeySecretRef: kagent-anthropic, apiKeySecretKey: ANTHROPIC_API_KEY
+#              apiKeySecret: kagent-anthropic, apiKeySecretKey: ANTHROPIC_API_KEY
 apiVersion: kagent.dev/v1alpha2
 kind: ModelConfig
 metadata:
@@ -26,7 +26,7 @@ metadata:
 spec:
   provider: OpenAI                  # DeepSeek is OpenAI-API-compatible
   model: deepseek-chat              # keep in sync with WORKSHOP_LLM_MODEL in cluster/versions.env
-  apiKeySecretRef: kagent-deepseek
+  apiKeySecret: kagent-deepseek
   apiKeySecretKey: DEEPSEEK_API_KEY
   openAI:
     baseUrl: https://api.deepseek.com/v1   # DeepSeek OpenAI-compatible endpoint
