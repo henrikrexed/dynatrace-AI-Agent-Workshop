@@ -15,10 +15,12 @@ OneAgent full-stack (lightest mode, right for a single-node Codespace).
 `DT_API_TOKEN`. **The secret name must equal the DynaKube name** (`dynakube`) —
 that is the operator's lookup convention.
 
-Token scopes needed: Kubernetes monitoring / ActiveGate token
-(`activeGateTokenManagement`, `entities.read`, `settings.*`) plus the OTLP ingest
-scopes used by the OTel collector (`openTelemetryTrace.ingest`,
-`metrics.ingest`, `logs.ingest`).
+Token scopes needed — the same `DT_API_TOKEN` is reused for the operator **and**
+the OTel collector, so it must carry **all seven**: Kubernetes monitoring /
+ActiveGate (`activeGateTokenManagement.create`, `entities.read`, `settings.read`,
+`settings.write`) **plus** OTLP ingest (`openTelemetryTrace.ingest`,
+`metrics.ingest`, `logs.ingest`). An ingest-only token leaves the DynaKube in
+`Error` with `ScopeMissing` / `DynatraceApiError` conditions.
 
 ## Verify
 

@@ -57,6 +57,23 @@ kubectl get dynakube -n dynatrace
 kubectl -n dynatrace get pods            # operator, webhook, activegate Ready
 ```
 
+**DynaKube stuck in `Error` / `ScopeMissing`.** `kubectl describe dynakube -n
+dynatrace` shows conditions such as `ActiveGateConnectionInfo … DynatraceApiError`,
+`MonitoredEntity … settings:objects:write … ScopeMissing`, or
+`MetadataEnrichmentRules … missing scopes`. Cause: `DT_API_TOKEN` was created with
+the **OTLP ingest scopes only**. The operator reuses that same token, so it also
+needs the four Kubernetes-monitoring scopes —
+`activeGateTokenManagement.create`, `entities.read`, `settings.read`,
+`settings.write` (see [Token A](start-benchmark.md#4-create-the-required-tokens)).
+Fix:
+
+```bash
+# After adding the four scopes to the token (or regenerating it):
+bash cluster/secrets.sh                              # refresh secret/dynakube
+kubectl -n dynatrace delete pod -l app.kubernetes.io/name=activegate  # re-read token
+kubectl get dynakube -n dynatrace                    # Phase should go Running
+```
+
 **OTel operator hangs applying the collector CR.** The operator must use its
 self-signed webhook cert (`autoGenerateCert`), already set in
 [`otel/operator-values.yaml`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/otel/operator-values.yaml).
