@@ -394,10 +394,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#a-dynatrace-ingest-kubernetes-monitoring-token-dt_api_token" class="md-nav__link">
+  <a href="#a-dynatrace-ingest-token-dt_api_token" class="md-nav__link">
     <span class="md-ellipsis">
       
-        A. Dynatrace ingest + Kubernetes-monitoring token → DT_API_TOKEN
+        A. Dynatrace ingest token → DT_API_TOKEN
       
     </span>
   </a>
@@ -416,10 +416,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#c-dynatrace-dt-evals-token-dynatrace_api_token" class="md-nav__link">
+  <a href="#c-dynatrace-operator-dt-evals-token-dynatrace_api_token" class="md-nav__link">
     <span class="md-ellipsis">
       
-        C. Dynatrace dt-evals token → DYNATRACE_API_TOKEN
+        C. Dynatrace operator + dt-evals token → DYNATRACE_API_TOKEN
       
     </span>
   </a>
@@ -891,7 +891,7 @@ page above. Reference: GitHub's
 <tr>
 <td><code>DT_API_TOKEN</code></td>
 <td style="text-align: center;">✅</td>
-<td>Dynatrace <strong>OTLP ingest + Kubernetes-monitoring</strong> token (<code>dt0c01</code>) — see token <strong>A</strong> below.</td>
+<td>Dynatrace <strong>ingest</strong> token (traces/metrics/logs) — OTLP export + DynaKube <code>dataIngestToken</code>. See token <strong>A</strong> below.</td>
 </tr>
 <tr>
 <td><code>DT_PLATFORM_TOKEN</code></td>
@@ -901,7 +901,7 @@ page above. Reference: GitHub's
 <tr>
 <td><code>DYNATRACE_API_TOKEN</code></td>
 <td style="text-align: center;">✅</td>
-<td>Dedicated <strong>dt-evals</strong> token (<code>dt0c01</code>) — token <strong>C</strong>. Distinct from <code>DT_API_TOKEN</code>.</td>
+<td>Dynatrace <strong>operator + dt-evals</strong> token — the DynaKube <code>apiToken</code> (Kubernetes-monitoring scopes) <strong>and</strong> the Phase-4 dt-evals token. See token <strong>C</strong>. Distinct from <code>DT_API_TOKEN</code>.</td>
 </tr>
 <tr>
 <td><code>DEEPSEEK_API_KEY</code></td>
@@ -933,34 +933,23 @@ page above. Reference: GitHub's
 <p>Five credentials power the workshop. Create each one with <strong>exactly</strong> the
 permissions below — over-scoping is a security risk, under-scoping breaks a
 module.</p>
-<h3 id="a-dynatrace-ingest-kubernetes-monitoring-token-dt_api_token">A. Dynatrace ingest + Kubernetes-monitoring token → <code>DT_API_TOKEN</code><a class="headerlink" href="#a-dynatrace-ingest-kubernetes-monitoring-token-dt_api_token" title="Permanent link">&para;</a></h3>
-<p>This <strong>one</strong> token does two jobs: the OpenTelemetry collector uses it to ingest
-the agents' traces, metrics, and logs, <strong>and</strong> the Dynatrace Operator uses it as
-the <code>DynaKube</code> API token to stand up the ActiveGate and monitor the cluster. So
-it needs <strong>both</strong> the ingest scopes <strong>and</strong> the Kubernetes-monitoring scopes.</p>
+<h3 id="a-dynatrace-ingest-token-dt_api_token">A. Dynatrace ingest token → <code>DT_API_TOKEN</code><a class="headerlink" href="#a-dynatrace-ingest-token-dt_api_token" title="Permanent link">&para;</a></h3>
+<p>Used by the OpenTelemetry collector to ingest the agents' traces, metrics, and
+logs into Dynatrace, and reused as the DynaKube <code>dataIngestToken</code>. <strong>Ingest scopes
+only</strong> — the DynaKube <em>operator</em> uses a separate token (<code>DYNATRACE_API_TOKEN</code>,
+token <strong>C</strong>).</p>
 <ul>
-<li><strong>Type:</strong> API token (<code>dt0c01</code>) <strong>or</strong> platform token (<code>dt0s16</code>) — either works,
-  as long as it carries the scopes below.</li>
-<li><strong>Scopes:</strong> select the ingest <strong>and</strong> the Kubernetes-monitoring scopes:<ul>
-<li><strong>Ingest (collector)</strong> — classic: <code>openTelemetryTrace.ingest</code> · <code>metrics.ingest</code> · <code>logs.ingest</code>; platform: <code>openpipeline:traces:ingest</code> · <code>openpipeline:logs:ingest</code> · <code>data-acquisition:metrics:ingest</code> · <code>data-acquisition:logs:ingest</code></li>
-<li><strong>Kubernetes monitoring (operator / ActiveGate)</strong> — classic: <code>activeGateTokenManagement.create</code> · <code>entities.read</code> · <code>settings.read</code> · <code>settings.write</code>; platform: <code>fleet-management:activegate.tokens:create</code> · <code>fleet-management:activegate.connection-info:read</code> · <code>settings:objects:read</code> · <code>settings:objects:write</code></li>
+<li><strong>Type:</strong> API token (<code>dt0c01</code>) <strong>or</strong> platform token (<code>dt0s16</code>).</li>
+<li><strong>Scopes (ingest):</strong><ul>
+<li>classic <code>dt0c01</code>: <code>openTelemetryTrace.ingest</code> · <code>metrics.ingest</code> · <code>logs.ingest</code></li>
+<li>platform <code>dt0s16</code>: <code>openpipeline:traces:ingest</code> · <code>openpipeline:logs:ingest</code> · <code>data-acquisition:metrics:ingest</code> · <code>data-acquisition:logs:ingest</code></li>
 </ul>
 </li>
 <li><strong>Create it:</strong> in your Dynatrace environment, open <strong>Access Tokens</strong>
   (<code>https://&lt;your-env&gt;.apps.dynatrace.com/ui/apps/dynatrace.classic.tokens</code>) →
-  <strong>Generate new token</strong> → select all the scopes above.</li>
+  <strong>Generate new token</strong> → select the ingest scopes.</li>
 <li><strong>Docs:</strong> <a href="https://docs.dynatrace.com/docs/manage/identity-access-management/access-tokens-and-oauth-clients/access-tokens">Dynatrace access tokens</a>.</li>
 </ul>
-<div class="admonition warning">
-<p class="admonition-title">Missing the Kubernetes-monitoring scopes is the #1 DynaKube failure</p>
-<p>If <code>kubectl get dynakube -n dynatrace</code> shows <strong><code>Error</code></strong> with conditions like
-<code>ActiveGateConnectionInfo … DynatraceApiError</code>, <code>settings:objects:write …
-ScopeMissing</code>, or <code>metadata-enrichment rules … missing scopes</code>, the token was
-created with the ingest scopes only. Add the Kubernetes-monitoring scopes above
-<strong>to the same <code>DT_API_TOKEN</code></strong> (or regenerate it) — no new Codespace secret
-needed — then re-run <code>bash cluster/secrets.sh</code> and delete the ActiveGate pod so
-it picks up the refreshed token.</p>
-</div>
 <h3 id="b-dynatrace-platform-token-dt_platform_token">B. Dynatrace platform token → <code>DT_PLATFORM_TOKEN</code><a class="headerlink" href="#b-dynatrace-platform-token-dt_platform_token" title="Permanent link">&para;</a></h3>
 <p>Used by the <strong>Dynatrace MCP server</strong> (the SRE agent's tools: problems, entities,
 logs, metrics) and the <code>dtctl</code> CLI in the optimization module.</p>
@@ -972,21 +961,35 @@ logs, metrics) and the <code>dtctl</code> CLI in the optimization module.</p>
 <li><strong>Docs:</strong> <a href="https://docs.dynatrace.com/docs/manage/identity-access-management/access-tokens-and-oauth-clients/platform-tokens">Dynatrace platform tokens</a>.</li>
 </ul>
 <div class="admonition note">
-<p class="admonition-title">Platform ≠ OTLP</p>
-<p><code>DT_PLATFORM_TOKEN</code> (<code>dt0s16</code>) is <strong>not</strong> the same as <code>DT_API_TOKEN</code>
-(<code>dt0c01</code>). They authenticate against different Dynatrace surfaces — keep
-them separate.</p>
+<p class="admonition-title">Three distinct Dynatrace tokens</p>
+<p><code>DT_PLATFORM_TOKEN</code> (SRE MCP + <code>dtctl</code>) is <strong>not</strong> the same as <code>DT_API_TOKEN</code>
+(ingest) or <code>DYNATRACE_API_TOKEN</code> (DynaKube operator + dt-evals). They
+authenticate against different Dynatrace surfaces — keep all three separate.</p>
 </div>
-<h3 id="c-dynatrace-dt-evals-token-dynatrace_api_token">C. Dynatrace dt-evals token → <code>DYNATRACE_API_TOKEN</code><a class="headerlink" href="#c-dynatrace-dt-evals-token-dynatrace_api_token" title="Permanent link">&para;</a></h3>
-<p>Used by the <strong>dt-evals</strong> CLI to read agent spans and write evaluation results
-back into Dynatrace. It is a <strong>separate</strong> <code>dt0c01</code> token from the OTLP one.</p>
+<h3 id="c-dynatrace-operator-dt-evals-token-dynatrace_api_token">C. Dynatrace operator + dt-evals token → <code>DYNATRACE_API_TOKEN</code><a class="headerlink" href="#c-dynatrace-operator-dt-evals-token-dynatrace_api_token" title="Permanent link">&para;</a></h3>
+<p>This token does two jobs: it is the <strong>DynaKube operator</strong> token (the <code>apiToken</code>
+the Dynatrace Operator uses to stand up the ActiveGate and monitor the cluster)
+<strong>and</strong> the <strong>dt-evals</strong> token (Phase 4 — reads agent spans, writes eval results).
+It is a <strong>separate</strong> token from the ingest one (<code>DT_API_TOKEN</code>).</p>
 <ul>
-<li><strong>Type:</strong> API token, prefix <code>dt0c01</code>.</li>
-<li><strong>Scopes:</strong> <code>storage:spans:read</code> <strong>and</strong> <code>storage:events:write</code>.</li>
-<li><strong>Create it:</strong> same <strong>Access Tokens</strong> page as token <strong>A</strong>, but select those
-  two storage scopes.</li>
+<li><strong>Type:</strong> API token (<code>dt0c01</code>) <strong>or</strong> platform token (<code>dt0s16</code>).</li>
+<li><strong>Scopes:</strong> the Kubernetes-monitoring scopes <strong>and</strong> the dt-evals scopes:<ul>
+<li><strong>Kubernetes monitoring (operator / ActiveGate)</strong> — classic: <code>activeGateTokenManagement.create</code> · <code>entities.read</code> · <code>settings.read</code> · <code>settings.write</code>; platform: <code>fleet-management:activegate.tokens:create</code> · <code>fleet-management:activegate.connection-info:read</code> · <code>settings:objects:read</code> · <code>settings:objects:write</code></li>
+<li><strong>dt-evals</strong> — <code>storage:spans:read</code> · <code>storage:events:write</code></li>
+</ul>
+</li>
+<li><strong>Create it:</strong> same <strong>Access Tokens</strong> page as token <strong>A</strong>, selecting the scopes above.</li>
 <li><strong>Docs:</strong> <a href="https://docs.dynatrace.com/docs/manage/identity-access-management/access-tokens-and-oauth-clients/access-tokens">Dynatrace access tokens</a>.</li>
 </ul>
+<div class="admonition warning">
+<p class="admonition-title">Wrong token in <code>DYNATRACE_API_TOKEN</code> is the #1 DynaKube failure</p>
+<p>If <code>kubectl get dynakube -n dynatrace</code> shows <strong><code>Error</code></strong> with conditions like
+<code>ActiveGateConnectionInfo … DynatraceApiError</code>, <code>settings:objects:write …
+ScopeMissing</code>, or <code>metadata-enrichment rules … missing scopes</code>, then
+<code>DYNATRACE_API_TOKEN</code> is missing the Kubernetes-monitoring scopes above. Add
+them (no new Codespace secret needed), re-run <code>bash cluster/secrets.sh</code>, then
+delete the ActiveGate pod so it picks up the refreshed token.</p>
+</div>
 <h3 id="d-llm-deepseek-api-key-deepseek_api_key">D. LLM / DeepSeek API key → <code>DEEPSEEK_API_KEY</code><a class="headerlink" href="#d-llm-deepseek-api-key-deepseek_api_key" title="Permanent link">&para;</a></h3>
 <p>Powers every kagent agent (DeepSeek is the cost-efficient default for the
 workshop). DeepSeek's API is OpenAI-compatible.</p>
