@@ -36,7 +36,7 @@ echo "--- Codespace secrets contract (values never printed) ---"
 
 echo "[Phase 2] Dynatrace operator + OTLP ingest"
 check DT_TENANT_URL required "Dynatrace tenant, e.g. https://abc12345.live.dynatrace.com"
-check DT_API_TOKEN  required "Dynatrace API token (dt0c01) for the operator + OTLP ingest"
+check DT_API_TOKEN  required "Dynatrace INGEST token (OTLP export + DynaKube dataIngestToken)"
 
 echo "[Phase 3/5] Dynatrace platform — dtctl + Dynatrace MCP (one platform token)"
 check DT_PLATFORM_TOKEN required "Dynatrace platform token (dt0s16) shared by dtctl and the Dynatrace MCP"
@@ -49,7 +49,7 @@ check GH_DEMO_REPO required "BMAD/'bad crew' demo repo (owner/repo) the GitHub M
 
 echo "[Phase 4] dt-evals (trace-sourced LLM-as-judge)"
 check_either DT_ENV_URL DT_ENVIRONMENT_URL optional "dt-evals tenant URL; derived from DT_TENANT_URL if unset"
-check DYNATRACE_API_TOKEN optional "dt-evals token (dt0c01), scopes: storage:spans:read + storage:events:write"
+check DYNATRACE_API_TOKEN optional "DynaKube OPERATOR token (apiToken, k8s-monitoring scopes) + dt-evals (storage:spans:read + storage:events:write)"
 check DT_EVAL_SERVICE     optional "service.name of the agent to evaluate (discovered, not a secret)"
 
 echo "[Optional] alternate model providers"

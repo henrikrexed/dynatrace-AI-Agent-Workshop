@@ -17,7 +17,7 @@ a secret, **rebuild or restart the Codespace** so the new value is injected.
 | Variable | Purpose | Example / format |
 |----------|---------|------------------|
 | `DT_TENANT_URL` | Dynatrace tenant used by the Operator (k8smonitoring) and OTLP export. | `https://abc12345.live.dynatrace.com` |
-| `DT_API_TOKEN` | Dynatrace token reused for the DynaKube **operator** (`apiToken`) **and** OTLP ingest, so it needs **both** scope sets: Kubernetes-monitoring / ActiveGate (`settings` read/write + activegate token mgmt) **and** traces/metrics/logs ingest. An ingest-only token leaves the DynaKube in `Error`/`ScopeMissing`. Classic (`dt0c01`) or platform (`dt0s16`) token. | `dt0c01.XXXX...` |
+| `DT_API_TOKEN` | Dynatrace **ingest** token — the OTel collector OTLP export + the DynaKube `dataIngestToken` (traces/metrics/logs ingest scopes). Classic (`dt0c01`) or platform (`dt0s16`). | `dt0c01.XXXX...` |
 | `GITHUB_TOKEN` / `GH_PAT` | Token for the **GitHub MCP** wired into the BMAD crew (Phase 3). Codespaces injects a scoped `GITHUB_TOKEN`; for the write demo provide a **fine-grained `GH_PAT`** scoped to the one demo repo (Contents RW · Issues RW · Pull requests RW; no org/admin). The installer prefers `GH_PAT`, falling back to `GITHUB_TOKEN`. | `github_pat_...` |
 | `LLM_API_KEY` / `DEEPSEEK_API_KEY` | Model-provider key that powers the kagent agents. **DeepSeek by default** (Phase 3, cost-efficient; `secret/kagent-deepseek`). `DEEPSEEK_API_KEY` is preferred; `LLM_API_KEY` is the generic fallback and should hold the DeepSeek key when DeepSeek is the provider. | `sk-...` (DeepSeek) |
 | `GH_DEMO_REPO` | The **BMAD/"bad crew"** demo repository the GitHub MCP writes to (issues/PRs). Explicit var so the environment test can assert it. | `owner/repo` or full URL |
@@ -47,7 +47,7 @@ from the Phase-2 OTLP ingest token:
 
 | Variable | Purpose | Example / format |
 |----------|---------|------------------|
-| `DYNATRACE_API_TOKEN` | Dedicated dt-evals token. Scopes: **`storage:spans:read` + `storage:events:write`** (read spans, write eval events). | `dt0c01.XXXX...` |
+| `DYNATRACE_API_TOKEN` | Dynatrace **DynaKube operator + dt-evals** token. The DynaKube `apiToken` (Kubernetes-monitoring / ActiveGate: `settings` read/write + activegate token mgmt) **and** the Phase-4 dt-evals token (`storage:spans:read` + `storage:events:write`). An operator-scope-less token leaves the DynaKube in `Error`/`ScopeMissing`. | `dt0c01.XXXX...` |
 | `DT_ENV_URL` / `DT_ENVIRONMENT_URL` | dt-evals tenant URL. If unset, `run-dt-eval.sh` derives it from `DT_TENANT_URL`. | `https://abc12345.live.dynatrace.com` |
 | `DT_EVAL_SERVICE` | `service.name` of the agent to evaluate — **discovered**, not a secret (optional; see `evals/dt-evals/README.md`). | `sre-agent` |
 
