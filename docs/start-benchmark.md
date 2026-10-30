@@ -138,7 +138,7 @@ dashboard, notebook, Site Reliability Guardian, and workflow to your tenant.
 - **Docs:** [Dynatrace platform tokens](https://docs.dynatrace.com/docs/manage/identity-access-management/access-tokens-and-oauth-clients/platform-tokens).
 
 !!! note "Three distinct Dynatrace tokens"
-    `DT_PLATFORM_TOKEN` (SRE MCP + `dtctl`) is **not** the same as `DT_API_TOKEN`
+    `DT_PLATFORM_TOKEN` (`dtctl`) is **not** the same as `DT_API_TOKEN`
     (ingest) or `DYNATRACE_API_TOKEN` (DynaKube operator + dt-evals). They
     authenticate against different Dynatrace surfaces — keep all three separate.
 
