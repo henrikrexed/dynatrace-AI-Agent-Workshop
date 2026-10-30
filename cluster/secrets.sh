@@ -4,22 +4,27 @@
 # and NEVER committed. Idempotent: secrets are upserted with apply.
 #
 #   DT_TENANT_URL   e.g. https://abc12345.live.dynatrace.com   (no trailing /api)
-#   DT_API_TOKEN    One Dynatrace token reused for BOTH jobs (DynaKube operator
-#                   apiToken + the OTel collector OTLP export), so it needs the
-#                   UNION of scopes. Works as a classic (dt0c01) or platform
-#                   (dt0s16) token:
-#                     operator/ActiveGate —
-#                       classic:  activeGateTokenManagement.create, entities.read,
-#                                 settings.read, settings.write
-#                       platform: fleet-management:activegate.tokens:create,
-#                                 fleet-management:activegate.connection-info:read,
-#                                 settings:objects:read, settings:objects:write
-#                     ingest (collector) —
-#                       classic:  openTelemetryTrace.ingest, metrics.ingest, logs.ingest
-#                       platform: openpipeline:traces:ingest, openpipeline:logs:ingest,
-#                                 data-acquisition:metrics:ingest (+ logs)
-#                   A token with only the ingest scopes leaves the DynaKube in
-#                   Error (ScopeMissing) — add the operator scopes to the SAME token.
+#   The DynaKube needs two tokens whose scopes are DISJOINT; the OTel collector
+#   needs the ingest one. We map them onto the two existing token secrets so no new
+#   Codespace secret is required:
+#
+#   DT_API_TOKEN         INGEST token -> DynaKube dataIngestToken + the OTel
+#                        collector's OTLP export. Scopes (classic dt0c01 | platform
+#                        dt0s16):
+#                          openTelemetryTrace.ingest, metrics.ingest, logs.ingest |
+#                          openpipeline:traces:ingest, openpipeline:logs:ingest,
+#                          data-acquisition:metrics:ingest (+ logs)
+#   DYNATRACE_API_TOKEN  OPERATOR token -> DynaKube apiToken (Kubernetes-monitoring /
+#                        ActiveGate). This is also the Phase-4 dt-evals token, so it
+#                        carries the operator scopes IN ADDITION to its dt-evals
+#                        scopes (storage:spans:read, storage:events:write). Operator
+#                        scopes (classic | platform):
+#                          activeGateTokenManagement.create, entities.read,
+#                          settings.read, settings.write |
+#                          fleet-management:activegate.tokens:create,
+#                          fleet-management:activegate.connection-info:read,
+#                          settings:objects:read, settings:objects:write
+#                        Falls back to DT_API_TOKEN if unset (single combined token).
 #   LLM_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY  model-provider key for kagent.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,14 +37,22 @@ apply_secret() { kubectl apply -f - >/dev/null; }
 
 # --- Dynatrace token secret -------------------------------------------------
 # The operator convention: the secret name MUST match the DynaKube name ("dynakube").
-if [ -n "${DT_API_TOKEN:-}" ]; then
+# apiToken = operator (DYNATRACE_API_TOKEN); dataIngestToken = ingest (DT_API_TOKEN).
+operator_token="${DYNATRACE_API_TOKEN:-${DT_API_TOKEN:-}}"
+if [ -z "${DYNATRACE_API_TOKEN:-}" ] && [ -n "${DT_API_TOKEN:-}" ]; then
+  warn "DYNATRACE_API_TOKEN not set — reusing DT_API_TOKEN as the DynaKube operator token; it must then also carry the Kubernetes-monitoring scopes or the DynaKube will be in Error (ScopeMissing)"
+fi
+if [ -n "${DYNATRACE_API_TOKEN:-}" ] && [ "${DYNATRACE_API_TOKEN}" = "${DT_API_TOKEN:-}" ]; then
+  warn "DYNATRACE_API_TOKEN equals DT_API_TOKEN — if that is an ingest-only token the DynaKube will be stuck in Error (ScopeMissing). The operator token needs settings:objects:write + activegate scopes."
+fi
+if [ -n "${operator_token}" ]; then
   kubectl create secret generic dynakube -n dynatrace \
-    --from-literal=apiToken="${DT_API_TOKEN}" \
-    --from-literal=dataIngestToken="${DT_API_TOKEN}" \
+    --from-literal=apiToken="${operator_token}" \
+    --from-literal=dataIngestToken="${DT_API_TOKEN:-}" \
     --dry-run=client -o yaml | apply_secret
-  ok "secret/dynakube (dynatrace) upserted"
+  ok "secret/dynakube (dynatrace) upserted — apiToken=DYNATRACE_API_TOKEN, dataIngestToken=DT_API_TOKEN"
 else
-  warn "DT_API_TOKEN not set — skipping secret/dynakube (operator + OTLP export will not authenticate)"
+  warn "neither DYNATRACE_API_TOKEN nor DT_API_TOKEN set — skipping secret/dynakube (the operator cannot authenticate)"
 fi
 
 # --- OTLP export secret (collector -> Dynatrace tenant) ---------------------
