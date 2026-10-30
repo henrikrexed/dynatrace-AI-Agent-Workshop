@@ -828,18 +828,38 @@ name (<code>dynakube</code>).</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kubectl<span class="w"> </span>get<span class="w"> </span>dynakube<span class="w"> </span>-n<span class="w"> </span>dynatrace
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>dynatrace<span class="w"> </span>get<span class="w"> </span>pods<span class="w">            </span><span class="c1"># operator, webhook, activegate Ready</span>
 </code></pre></div>
+<p><strong>DynaKube stuck in <code>Error</code> / <code>ScopeMissing</code>.</strong> <code>kubectl describe dynakube -n
+dynatrace</code> shows conditions such as <code>ActiveGateConnectionInfo … DynatraceApiError</code>,
+<code>MonitoredEntity … settings:objects:write … ScopeMissing</code>, or
+<code>MetadataEnrichmentRules … missing scopes</code>. Cause: <code>DT_API_TOKEN</code> was created with
+the <strong>ingest scopes only</strong>. The operator reuses that same token, so it also needs
+the Kubernetes-monitoring scopes — classic: <code>activeGateTokenManagement.create</code>,
+<code>entities.read</code>, <code>settings.read</code>, <code>settings.write</code>; platform (<code>dt0s16</code>):
+<code>fleet-management:activegate.tokens:create</code>,
+<code>fleet-management:activegate.connection-info:read</code>, <code>settings:objects:read</code>,
+<code>settings:objects:write</code> (see <a href="../start-benchmark/#4-create-the-required-tokens">Token A</a>).
+No new Codespace secret is needed — add the scopes to the existing <code>DT_API_TOKEN</code>.
+Fix:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># After adding the k8s-monitoring scopes to DT_API_TOKEN (or regenerating it):</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>bash<span class="w"> </span>cluster/secrets.sh<span class="w">                              </span><span class="c1"># refresh secret/dynakube</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># Or patch the refreshed token straight in without a redeploy:</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1">#   kubectl -n dynatrace patch secret dynakube --type merge \</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1">#     -p "{\"stringData\":{\"apiToken\":\"&lt;token&gt;\"}}"</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>dynatrace<span class="w"> </span>delete<span class="w"> </span>pod<span class="w"> </span>-l<span class="w"> </span>app.kubernetes.io/name<span class="o">=</span>activegate<span class="w">  </span><span class="c1"># re-read token</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>kubectl<span class="w"> </span>get<span class="w"> </span>dynakube<span class="w"> </span>-n<span class="w"> </span>dynatrace<span class="w">                    </span><span class="c1"># Phase should go Running</span>
+</code></pre></div>
 <p><strong>OTel operator hangs applying the collector CR.</strong> The operator must use its
 self-signed webhook cert (<code>autoGenerateCert</code>), already set in
 <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/otel/operator-values.yaml"><code>otel/operator-values.yaml</code></a>.
 <code>install.sh</code> retries the CR for ~60s while the webhook registers.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>get<span class="w"> </span>otelcol
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>logs<span class="w"> </span>deploy/opentelemetry-operator
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>get<span class="w"> </span>otelcol
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>logs<span class="w"> </span>deploy/opentelemetry-operator
 </code></pre></div>
 <h3 id="tetragon-not-ready-or-crashlooping">Tetragon not Ready or CrashLooping<a class="headerlink" href="#tetragon-not-ready-or-crashlooping" title="Permanent link">&para;</a></h3>
 <p>k3d/kind nodes share the <strong>Codespace host kernel</strong>; Tetragon needs BTF and probe
 permissions.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>tetragon<span class="w"> </span>logs<span class="w"> </span>ds/tetragon<span class="w"> </span>-c<span class="w"> </span>tetragon
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>tetragon<span class="w"> </span>get<span class="w"> </span>pods
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>tetragon<span class="w"> </span>logs<span class="w"> </span>ds/tetragon<span class="w"> </span>-c<span class="w"> </span>tetragon
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>tetragon<span class="w"> </span>get<span class="w"> </span>pods
 </code></pre></div>
 <ul>
 <li>Confirm host BTF exists: <code>ls /sys/kernel/btf/vmlinux</code>.</li>
@@ -850,16 +870,16 @@ permissions.</p>
 </ul>
 <p><strong>Phoenix not Ready.</strong> It uses one RWO PVC with <code>strategy: Recreate</code> — never two
 pods on the same volume.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>get<span class="w"> </span>pods
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>logs<span class="w"> </span>deploy/phoenix
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>get<span class="w"> </span>pods
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>logs<span class="w"> </span>deploy/phoenix
 </code></pre></div>
 <hr />
 <h2 id="module-02-agents-mcp-wiring">Module 02 — Agents &amp; MCP wiring<a class="headerlink" href="#module-02-agents-mcp-wiring" title="Permanent link">&para;</a></h2>
 <p><strong>A <code>RemoteMCPServer</code> isn't <code>Accepted</code> / <code>discoveredTools</code> is empty.</strong> The tool
 server couldn't start or authenticate. Check the token and the server pod:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>mcpserver,remotemcpserver
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>describe<span class="w"> </span>remotemcpserver<span class="w"> </span>dynatrace-mcp-remote
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>logs<span class="w"> </span>deploy/kagent-controller
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>mcpserver,remotemcpserver
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>describe<span class="w"> </span>remotemcpserver<span class="w"> </span>dynatrace-mcp-remote
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>logs<span class="w"> </span>deploy/kagent-controller
 </code></pre></div>
 <ul>
 <li><code>GH_PAT</code> must be a fine-grained PAT scoped to the demo repo (Contents /
@@ -870,10 +890,10 @@ server couldn't start or authenticate. Check the token and the server pod:</p>
 </ul>
 <p><strong>Dynatrace MCP <code>initialize</code> times out / <code>context deadline exceeded</code>.</strong> The SRE
 agent's tool discovery fails and the agent runtime logs:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>failed to extract tools from the tool set "mcp_tool_set": failed to list MCP tools:
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>failed to init MCP session: calling "initialize": sending "initialize":
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>rejected by transport: Post "http://dynatrace-mcp.kagent:3000/mcp":
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>failed to extract tools from the tool set "mcp_tool_set": failed to list MCP tools:
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>failed to init MCP session: calling "initialize": sending "initialize":
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>rejected by transport: Post "http://dynatrace-mcp.kagent:3000/mcp":
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>context deadline exceeded (Client.Timeout exceeded while awaiting headers)
 </code></pre></div>
 <p>The Dynatrace MCP stdio server didn't answer the <code>initialize</code> handshake before
 the client timeout. The usual cause was a <strong>cold-start npm fetch</strong>: the server
@@ -884,10 +904,10 @@ slow Codespace. The workshop now ships a <strong>pre-baked image</strong>
 <code>cluster/versions.env</code>) so the <code>mcp-server-dynatrace</code> binary starts instantly —
 pull the latest manifests and re-run <code>bash agents/install-agents.sh</code>.</p>
 <p>If it still times out, rule out the other two causes:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>mcpserver,remotemcpserver
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>pods<span class="w"> </span>-l<span class="w"> </span>workshop.tool<span class="o">=</span>dynatrace<span class="w">   </span><span class="c1"># pod Ready? not ImagePull/CrashLoop?</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>logs<span class="w">  </span>-l<span class="w"> </span>workshop.tool<span class="o">=</span>dynatrace<span class="w">      </span><span class="c1"># server start + auth errors</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>describe<span class="w"> </span>remotemcpserver<span class="w"> </span>dynatrace-mcp-remote
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>mcpserver,remotemcpserver
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>pods<span class="w"> </span>-l<span class="w"> </span>workshop.tool<span class="o">=</span>dynatrace<span class="w">   </span><span class="c1"># pod Ready? not ImagePull/CrashLoop?</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>logs<span class="w">  </span>-l<span class="w"> </span>workshop.tool<span class="o">=</span>dynatrace<span class="w">      </span><span class="c1"># server start + auth errors</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>describe<span class="w"> </span>remotemcpserver<span class="w"> </span>dynatrace-mcp-remote
 </code></pre></div>
 <ul>
 <li><strong>Image won't pull</strong> (<code>ImagePullBackOff</code>) — the pre-baked image must be
@@ -900,9 +920,9 @@ pull the latest manifests and re-run <code>bash agents/install-agents.sh</code>.
 </ul>
 <p><strong>An <code>Agent</code> isn't <code>Accepted</code>.</strong> Usually a bad <code>ModelConfig</code> or missing model
 secret.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>agents
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>describe<span class="w"> </span>agent<span class="w"> </span>sre-agent
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>secret<span class="w"> </span>kagent-deepseek<span class="w">    </span><span class="c1"># model key present?</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>agents
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>describe<span class="w"> </span>agent<span class="w"> </span>sre-agent
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>kagent<span class="w"> </span>get<span class="w"> </span>secret<span class="w"> </span>kagent-deepseek<span class="w">    </span><span class="c1"># model key present?</span>
 </code></pre></div>
 <p><strong>A2A prompt times out.</strong> Multi-hop BMAD runs take minutes — keep the client
 timeout generous (<code>curl -m 300</code>). Watch progress in the kagent UI
@@ -920,17 +940,17 @@ egress rule if a workload legitimately needs more.</p>
 <h2 id="module-04-observe">Module 04 — Observe<a class="headerlink" href="#module-04-observe" title="Permanent link">&para;</a></h2>
 <p><strong>No agent traces in Dynatrace.</strong> First generate traffic (send a prompt). Then
 check the pipeline end to end:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>get<span class="w"> </span>otelcol
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>logs<span class="w"> </span>deploy/otel-gateway-collector<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-40
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>get<span class="w"> </span>otelcol
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>logs<span class="w"> </span>deploy/otel-gateway-collector<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-40
 </code></pre></div>
 <p>Confirm kagent <code>otel.tracing</code> points at
 <code>otel-gateway-collector.opentelemetry-operator-system.svc:4317</code>, and that the
 tenant/token scopes include <code>openTelemetryTrace.ingest</code>.</p>
 <p><strong>Gateway logs <code>HTTP Status Code 404</code> / <code>Unimplemented</code> exporting to Dynatrace.</strong>
 The spans reach the collector but Dynatrace rejects the request:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>error  Exporting failed. Dropping data.  {"otelcol.component.id": "otlphttp/dynatrace", ...
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>  "error": "... request to https://&lt;env&gt;.apps.dynatrace.com/api/v2/otlp/v1/traces
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>  responded with HTTP Status Code 404", "dropped_items": 3}
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>error  Exporting failed. Dropping data.  {"otelcol.component.id": "otlphttp/dynatrace", ...
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>  "error": "... request to https://&lt;env&gt;.apps.dynatrace.com/api/v2/otlp/v1/traces
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>  responded with HTTP Status Code 404", "dropped_items": 3}
 </code></pre></div>
 <p>The tell is the host: <code>.apps.dynatrace.com</code>. That is the <strong>platform/apps</strong> domain
 (the MCP + <code>dtctl</code> URL, <code>DT_ENVIRONMENT</code>) and it does <strong>not</strong> serve <code>/api/v2/otlp</code>.
@@ -939,9 +959,9 @@ OTLP ingest lives on the <strong>environment</strong> domain, <code>.live.dynatr
 and re-provision — <code>cluster/install.sh</code> and <code>cluster/secrets.sh</code> now auto-correct
 an <code>.apps.</code> tenant to <code>.live.</code>, but a stale secret from a previous run must be
 refreshed:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>bash<span class="w"> </span>cluster/secrets.sh<span class="w">                                           </span><span class="c1"># rebuilds secret/dynatrace-otlp</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>rollout<span class="w"> </span>restart<span class="w"> </span>deploy/otel-gateway-collector
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>logs<span class="w"> </span>deploy/otel-gateway-collector<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>dynatrace
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>bash<span class="w"> </span>cluster/secrets.sh<span class="w">                                           </span><span class="c1"># rebuilds secret/dynatrace-otlp</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>rollout<span class="w"> </span>restart<span class="w"> </span>deploy/otel-gateway-collector
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>logs<span class="w"> </span>deploy/otel-gateway-collector<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>dynatrace
 </code></pre></div>
 <p><strong>Gateway logs <code>connection refused</code> to <code>phoenix.phoenix.svc...:4317</code> at startup.</strong>
 Benign and self-healing — the gateway starts before Phoenix is Ready and retries.
@@ -982,10 +1002,10 @@ namespace. Re-run it, or <code>kubectl delete ns workshop-faults --ignore-not-fo
 <h2 id="module-06-evaluate">Module 06 — Evaluate<a class="headerlink" href="#module-06-evaluate" title="Permanent link">&para;</a></h2>
 <p><strong>Phoenix UI empty.</strong> Same root cause as "no traces" above — fix the OTel
 pipeline, then re-send prompts. Confirm the forward:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>port-forward<span class="w"> </span>svc/phoenix<span class="w"> </span><span class="m">6006</span>:6006<span class="w">   </span><span class="c1"># then http://localhost:6006</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>port-forward<span class="w"> </span>svc/phoenix<span class="w"> </span><span class="m">6006</span>:6006<span class="w">   </span><span class="c1"># then http://localhost:6006</span>
 </code></pre></div>
 <p><strong>dt-evals can't resolve dependencies.</strong> Run inside <code>evals/</code> with <code>uv</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
 </code></pre></div>
 <p>The concrete suite ships in module 06 — <code>evals/dt-evals/workshop-agents.dt-eval.yaml</code>
 plus the Phoenix scripts are on <code>main</code>.</p>
