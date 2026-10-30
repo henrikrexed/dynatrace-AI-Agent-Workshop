@@ -3,7 +3,6 @@
 # Tools (plan §4/§5):
 #   • kubectl / k8s      — the built-in `kagent-tool-server` k8s_* tools.
 #   • k8s-networking     — `k8s_check_service_connectivity` from the same server.
-#   • dynatrace          — the `dynatrace-mcp-remote` MCP server (agents/mcp/20-*).
 #
 # `kagent-tool-server` is the built-in RemoteMCPServer the kagent chart creates
 # when kagent-tools is enabled (turned ON for Phase 3 in cluster/kagent/values.yaml).
@@ -19,13 +18,14 @@ metadata:
     app.kubernetes.io/part-of: workshop-agents
     workshop.role: sre
 spec:
-  description: SRE agent — investigates and operates the Kubernetes cluster with Dynatrace observability.
+  description: SRE agent — investigates and operates the Kubernetes cluster using kubectl/k8s tools.
   type: Declarative
   declarative:
     modelConfig: workshop-llm
     systemMessage: |
-      You are the SRE agent for a Kubernetes cluster that is monitored by Dynatrace.
-      Your job is to INVESTIGATE problems and, when asked, safely OPERATE the cluster.
+      You are the SRE agent for a Kubernetes cluster.
+      Your job is to INVESTIGATE problems and, when asked, safely OPERATE the cluster,
+      using only the Kubernetes (kubectl) tools available to you.
 
       How you work:
       1. Start from evidence. When asked about an incident or the health of a
@@ -33,12 +33,12 @@ spec:
          (k8s_get_resources, k8s_describe_resource), read pod logs
          (k8s_get_pod_logs) and recent events (k8s_get_events), and check service
          reachability (k8s_check_service_connectivity) before forming a hypothesis.
-      2. Correlate with Dynatrace. Use the dynatrace tools to pull open problems,
-         affected entities, Davis root-cause findings, logs (DQL/Grail) and metrics
-         for the same workload, so your conclusion is grounded in observability data,
-         not just cluster state. Cite the Dynatrace problem/entity you relied on.
+      2. Dig into the cluster. Pull the resource YAML (k8s_get_resource_yaml),
+         inspect container state, restart counts, probes and resource limits, and
+         follow the dependency chain (Deployment → ReplicaSet → Pod → Service) so
+         your conclusion is grounded in what the cluster actually reports.
       3. Diagnose. State the most likely root cause in one or two sentences, with the
-         specific evidence (a log line, an event, a Dynatrace problem id) that supports it.
+         specific evidence (a log line, an event, a failing probe) that supports it.
       4. Operate only when asked, and minimally. If the user asks you to remediate,
          use the smallest safe change (scale, rollout restart, patch, re-apply a
          manifest) and say exactly what you changed. Never delete a resource unless
@@ -74,26 +74,17 @@ spec:
             - k8s_label_resource
             - k8s_annotate_resource
             - k8s_execute_command
-      # Dynatrace observability (dynatrace-mcp-remote). toolNames omitted on
-      # purpose: expose every discovered Dynatrace tool (problems/entities/logs/
-      # metrics/Davis) — the server itself is read-oriented. Narrow this later if
-      # you want to restrict the surface.
-      - type: McpServer
-        mcpServer:
-          apiGroup: kagent.dev
-          kind: RemoteMCPServer
-          name: dynatrace-mcp-remote
     a2aConfig:
       skills:
         - id: investigate-incident
           name: Investigate Incident
-          description: Correlate cluster state with Dynatrace problems to find a root cause.
+          description: Inspect cluster state (resources, logs, events) to find a root cause.
           inputModes: [text]
           outputModes: [text]
-          tags: [sre, kubernetes, dynatrace, troubleshooting]
+          tags: [sre, kubernetes, troubleshooting]
           examples:
             - "The checkout pods are crash-looping — what is the root cause?"
-            - "Is there an open Dynatrace problem affecting the frontend service?"
+            - "Why is the frontend service returning errors? Check the pods and events."
         - id: operate-cluster
           name: Operate Cluster
           description: Perform a minimal, safe remediation (scale, restart, patch) on request.

@@ -1,6 +1,6 @@
 # Phase 3 · SRE agent. No token placeholders here — apply directly:
 #   kubectl apply -k agents/sre
-# Requires agents/mcp applied first (workshop-llm ModelConfig + dynatrace-mcp-remote)
+# Requires agents/mcp applied first (workshop-llm ModelConfig)
 # and the kagent chart's built-in kagent-tool-server (kagent-tools enabled).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
