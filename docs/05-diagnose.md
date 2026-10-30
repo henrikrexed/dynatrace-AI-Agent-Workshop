@@ -211,8 +211,9 @@ the failures are **intermittent** because only a *fraction* of requests are
 load-balanced to the bad endpoint, and cites the k8s evidence: the
 `product-catalog` Service has an **extra, unhealthy backend** in its endpoint
 rotation (`kubectl get endpoints`, pod readiness) — not the frontend that merely
-surfaces the errors. Grade against its `expected-diagnosis.md`
-(`pass_threshold: 4`). Clean up with:
+surfaces the errors. Grade against its `expected-diagnosis.md` — the agent must
+cite at least its `pass_threshold` of the required k8s/OTel signals. Clean up
+with:
 
 ```bash
 bash scenarios/run.sh cleanup 12     # removes only the faulty backend — never the healthy demo
