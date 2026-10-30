@@ -1,13 +1,12 @@
 # agents/sre — SRE agent
 
 A single kagent `Agent` (`sre-agent`) that **investigates** and, on request,
-**operates** the workshop cluster, correlating cluster state with Dynatrace.
+**operates** the workshop cluster using kubectl/k8s tools.
 
 | Tool surface | How it is wired |
 |--------------|-----------------|
 | `kubectl` / k8s | `kagent-tool-server` k8s_* tools (get/describe/logs/events/apply/patch/scale/rollout/exec) |
 | `k8s-networking` | `kagent-tool-server` `k8s_check_service_connectivity` |
-| `dynatrace` | `dynatrace-mcp-remote` (all discovered Dynatrace tools) |
 
 Model: `workshop-llm` (shared, `agents/mcp/00-modelconfig.yaml`).
 
