@@ -6,9 +6,8 @@ kagent agent manifests and MCP wiring — **Phase 3** (ISI-6716).
 agents/
 ├── mcp/                      # shared ModelConfig + MCP tool servers
 │   ├── 00-modelconfig.yaml   # workshop-llm — the shared DeepSeek brain
-│   ├── 10-github-mcp.yaml    # GitHub MCP  (MCPServer + RemoteMCPServer)
-│   └── 20-dynatrace-mcp.yaml # Dynatrace MCP (MCPServer + RemoteMCPServer)
-├── sre/                      # SRE agent (kubectl + k8s-networking + dynatrace)
+│   └── 10-github-mcp.yaml    # GitHub MCP  (MCPServer + RemoteMCPServer)
+├── sre/                      # SRE agent (kubectl + k8s-networking)
 │   └── sre-agent.yaml
 ├── bmad-crew/                # BMAD software-building crew (6 agents)
 │   └── 0{1..6}-bmad-*.yaml
@@ -20,7 +19,6 @@ agents/
 | Tool surface | Source | Used by |
 |--------------|--------|---------|
 | **Kubernetes / kubectl** + **k8s-networking** | built-in `kagent-tool-server` (kagent chart, `kagent-tools` enabled in Phase 3) | SRE agent |
-| **Dynatrace** | `dynatrace-mcp-remote` → in-cluster `@dynatrace-oss/dynatrace-mcp-server` | SRE agent |
 | **GitHub** (issues/PRs/repos) | `github-mcp-remote` → in-cluster `ghcr.io/github/github-mcp-server` | BMAD crew |
 
 All agents share one **`workshop-llm`** ModelConfig (**DeepSeek** by default —
@@ -35,8 +33,6 @@ up kagent with `kagent-tool-server` enabled:
 
 ```bash
 export GH_PAT='<fine-grained PAT, demo repo only>'   # BMAD crew → GitHub
-export DT_PLATFORM_TOKEN='dt0s16....'                     # SRE agent → Dynatrace
-export DT_ENVIRONMENT='https://<env>.apps.dynatrace.com'  # or derived from DT_TENANT_URL
 bash agents/install-agents.sh
 ```
 
