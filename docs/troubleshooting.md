@@ -48,9 +48,10 @@ secrets degrade gracefully (a component is skipped or warns). Re-run after fixin
 the secret: `bash cluster/install.sh`.
 
 **Dynatrace: no data on the tenant.** Check `DT_TENANT_URL` / `DT_API_TOKEN` and
-token scopes (`openTelemetryTrace.ingest`, `metrics.ingest`, `logs.ingest`, plus
-the k8s-monitoring scopes). The DynaKube secret name **must equal** the DynaKube
-name (`dynakube`).
+the ingest scopes (`openTelemetryTrace.ingest`, `metrics.ingest`, `logs.ingest`).
+The OTLP export uses `DT_API_TOKEN`; the DynaKube operator uses
+`DYNATRACE_API_TOKEN`. The DynaKube secret name **must equal** the DynaKube name
+(`dynakube`).
 
 ```bash
 kubectl get dynakube -n dynatrace
@@ -60,22 +61,22 @@ kubectl -n dynatrace get pods            # operator, webhook, activegate Ready
 **DynaKube stuck in `Error` / `ScopeMissing`.** `kubectl describe dynakube -n
 dynatrace` shows conditions such as `ActiveGateConnectionInfo … DynatraceApiError`,
 `MonitoredEntity … settings:objects:write … ScopeMissing`, or
-`MetadataEnrichmentRules … missing scopes`. Cause: `DT_API_TOKEN` was created with
-the **ingest scopes only**. The operator reuses that same token, so it also needs
-the Kubernetes-monitoring scopes — classic: `activeGateTokenManagement.create`,
-`entities.read`, `settings.read`, `settings.write`; platform (`dt0s16`):
+`MetadataEnrichmentRules … missing scopes`. Cause: `DYNATRACE_API_TOKEN` — the
+DynaKube operator token (`apiToken`) — is missing the Kubernetes-monitoring scopes.
+Add them — classic: `activeGateTokenManagement.create`, `entities.read`,
+`settings.read`, `settings.write`; platform (`dt0s16`):
 `fleet-management:activegate.tokens:create`,
 `fleet-management:activegate.connection-info:read`, `settings:objects:read`,
-`settings:objects:write` (see [Token A](start-benchmark.md#4-create-the-required-tokens)).
-No new Codespace secret is needed — add the scopes to the existing `DT_API_TOKEN`.
-Fix:
+`settings:objects:write` (see [Token C](start-benchmark.md#4-create-the-required-tokens)).
+No new Codespace secret is needed — add the scopes to the existing
+`DYNATRACE_API_TOKEN`. Fix:
 
 ```bash
-# After adding the k8s-monitoring scopes to DT_API_TOKEN (or regenerating it):
+# After adding the k8s-monitoring scopes to DYNATRACE_API_TOKEN (or regenerating it):
 bash cluster/secrets.sh                              # refresh secret/dynakube
 # Or patch the refreshed token straight in without a redeploy:
 #   kubectl -n dynatrace patch secret dynakube --type merge \
-#     -p "{\"stringData\":{\"apiToken\":\"<token>\"}}"
+#     -p "{\"stringData\":{\"apiToken\":\"<operator-token>\"}}"
 kubectl -n dynatrace delete pod -l app.kubernetes.io/name=activegate  # re-read token
 kubectl get dynakube -n dynatrace                    # Phase should go Running
 ```
