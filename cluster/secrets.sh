@@ -32,8 +32,17 @@ fi
 # --- OTLP export secret (collector -> Dynatrace tenant) ---------------------
 # The OTel gateway reads the tenant URL + token from this secret (ns opentelemetry-operator-system).
 if [ -n "${DT_TENANT_URL:-}" ] && [ -n "${DT_API_TOKEN:-}" ]; then
-  # Normalise: ensure the OTLP endpoint is <tenant>/api/v2/otlp
-  endpoint="${DT_TENANT_URL%/}/api/v2/otlp"
+  # Normalise: ensure the OTLP endpoint is <tenant>/api/v2/otlp on the ingest
+  # (.live.) domain. The platform/apps domain (.apps.dynatrace.com) does NOT
+  # serve /api/v2/otlp — exporting there returns HTTP 404 and every span is
+  # dropped (ISI-6937). Auto-correct a mis-set .apps. tenant so standalone runs
+  # of this script are protected too (install.sh applies the same swap).
+  dt_tenant="${DT_TENANT_URL}"
+  if [[ "${dt_tenant}" == *".apps.dynatrace.com"* ]]; then
+    dt_tenant="${dt_tenant/.apps.dynatrace.com/.live.dynatrace.com}"
+    warn "DT_TENANT_URL pointed at the .apps. (platform) domain — using ${dt_tenant} for OTLP ingest (the .apps. URL belongs to DT_ENVIRONMENT for MCP/dtctl)"
+  fi
+  endpoint="${dt_tenant%/}/api/v2/otlp"
   kubectl create secret generic dynatrace-otlp -n opentelemetry-operator-system \
     --from-literal=endpoint="${endpoint}" \
     --from-literal=apiToken="${DT_API_TOKEN}" \

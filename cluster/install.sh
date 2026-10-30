@@ -56,6 +56,19 @@ add_repo cilium          https://helm.cilium.io
 helm repo update >/dev/null 2>&1 || warn "helm repo update had warnings (offline?)"
 
 # ---------------------------------------------------------------------------
+# DT_TENANT_URL must be the environment (.live.dynatrace.com) domain: it serves
+# both the DynaKube apiUrl (/api) and the OTLP ingest path (/api/v2/otlp). The
+# platform/apps domain (.apps.dynatrace.com) is for the MCP + dtctl (DT_ENVIRONMENT)
+# and does NOT serve /api/v2/otlp — exporting there returns HTTP 404 and the
+# gateway drops every span (ISI-6937). Auto-correct a mis-set .apps. tenant here
+# so the exported value (inherited by secrets.sh below and the envsubst at the
+# DynaKube step) is always the ingest domain.
+if [ -n "${DT_TENANT_URL:-}" ] && [[ "${DT_TENANT_URL}" == *".apps.dynatrace.com"* ]]; then
+  export DT_TENANT_URL="${DT_TENANT_URL/.apps.dynatrace.com/.live.dynatrace.com}"
+  warn "DT_TENANT_URL pointed at the .apps. (platform) domain — corrected to ${DT_TENANT_URL} for OTLP ingest + DynaKube apiUrl (set DT_ENVIRONMENT for the .apps. MCP/dtctl URL)"
+fi
+
+# ---------------------------------------------------------------------------
 log "0/6  Provisioning secrets from the environment"
 bash "${SCRIPT_DIR}/secrets.sh" || warn "secret step reported issues (continuing)"
 
