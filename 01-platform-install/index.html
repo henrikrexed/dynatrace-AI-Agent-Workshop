@@ -756,7 +756,11 @@ Set these as <strong>Codespace secrets</strong> and rebuild/restart:</p>
 </tr>
 <tr>
 <td><code>DT_API_TOKEN</code></td>
-<td>Dynatrace Operator + OTLP export</td>
+<td>OTLP export + DynaKube <code>dataIngestToken</code> (ingest)</td>
+</tr>
+<tr>
+<td><code>DYNATRACE_API_TOKEN</code></td>
+<td>DynaKube operator <code>apiToken</code> (k8s-monitoring) + dt-evals</td>
 </tr>
 <tr>
 <td><code>LLM_API_KEY</code> <em>(or <code>OPENAI_API_KEY</code>)</em></td>
@@ -802,8 +806,10 @@ the <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/mai
   <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/tetragon/README.md"><code>cluster/tetragon/README.md</code></a>.</li>
 <li><strong>OTel operator hangs</strong> — it must use its self-signed webhook cert
   (<code>autoGenerateCert</code>), already set in <code>otel/operator-values.yaml</code>.</li>
-<li><strong>No data in Dynatrace</strong> — check <code>DT_TENANT_URL</code>/<code>DT_API_TOKEN</code> and token scopes
-  (<code>openTelemetryTrace.ingest</code>, <code>metrics.ingest</code>, <code>logs.ingest</code>).</li>
+<li><strong>No data in Dynatrace</strong> — check <code>DT_TENANT_URL</code>/<code>DT_API_TOKEN</code> and the ingest
+  scopes (<code>openTelemetryTrace.ingest</code>, <code>metrics.ingest</code>, <code>logs.ingest</code>). A DynaKube
+  in <code>Error</code> instead means <code>DYNATRACE_API_TOKEN</code> (operator) lacks the
+  k8s-monitoring scopes.</li>
 </ul>
 
 
