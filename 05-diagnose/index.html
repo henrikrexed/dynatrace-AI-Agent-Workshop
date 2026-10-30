@@ -659,10 +659,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-dynatrace-money-shot-scenario-12-optional" class="md-nav__link">
+  <a href="#the-partial-failure-scenario-scenario-12-optional" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The Dynatrace money shot — scenario 12 (optional)
+        The partial-failure scenario — scenario 12 (optional)
       
     </span>
   </a>
@@ -810,12 +810,14 @@ answer against a ground-truth key.</p>
 <div class="admonition info">
 <p class="admonition-title">Nothing new to install</p>
 <p>This module reuses the <strong>module-02 <code>sre-agent</code></strong> exactly as-is. It already
-has the right surface — read/investigate tools (<code>k8s_get_resources</code>,
-<code>k8s_describe_resource</code>, <code>k8s_get_pod_logs</code>, <code>k8s_get_events</code>), a minimal
-non-destructive operate set (scale/patch/rollout), and the full Dynatrace
-MCP — and a system prompt that <em>is</em> a "Findings → Root cause → Action →
-Verify" SRE loop. Nothing here grants the agent new destructive power; there
-is no <code>k8s_delete_resource</code>.</p>
+has the right surface — Kubernetes read/investigate tools
+(<code>k8s_get_resources</code>, <code>k8s_describe_resource</code>, <code>k8s_get_pod_logs</code>,
+<code>k8s_get_events</code>) and a minimal non-destructive operate set
+(scale/patch/rollout) — and a system prompt that <em>is</em> a "Findings → Root
+cause → Action → Verify" SRE loop. The agent is a <strong>kubectl-only
+investigator</strong>: it reaches its conclusions from live cluster state, not from
+an external observability tool. Nothing here grants the agent new
+destructive power; there is no <code>k8s_delete_resource</code>.</p>
 </div>
 <h2 id="why-break-things">Why break things<a class="headerlink" href="#why-break-things" title="Permanent link">&para;</a></h2>
 <p>You can't convince yourself an AI agent can do first-line SRE triage by watching
@@ -840,15 +842,17 @@ ambiguity.</p>
 <li><strong>SRE agent deployed</strong> — module 02 (<code>sre-agent</code> in the <code>kagent</code> namespace).
   This is the only hard requirement for scenarios 01–03.</li>
 <li><strong>(Scenario 12 only) Observe pipeline live</strong> — module 04, plus the opt-in
-  <code>opentelemetry-demo-light</code> app. Scenario 12 is the Dynatrace-correlation
-  scenario and is <strong>skippable</strong> (see the callout below).</li>
+  <code>opentelemetry-demo-light</code> app. Scenario 12 is the observability-correlation
+  scenario — the OTel signals surface the symptom and the agent root-causes it
+  in the cluster — and is <strong>skippable</strong> (see the callout below).</li>
 </ul>
 <div class="admonition warning">
 <p class="admonition-title">Scenario 12 has an extra resource footprint — skippable on the minimum tier</p>
 <p>Scenarios <strong>01–03 are self-contained</strong> and cost almost nothing: each spins up
 one throwaway Deployment. <strong>Scenario 12 additionally needs the opt-in
-<code>opentelemetry-demo-light</code> astronomy-shop app deployed</strong> (and Dynatrace, to
-show the correlation). On a <strong>minimum 4-core / 16 GB Codespace, skip 12</strong> and
+<code>opentelemetry-demo-light</code> astronomy-shop app deployed</strong> (and the observe
+pipeline live, so the symptom shows up in your signals). On a <strong>minimum
+4-core / 16 GB Codespace, skip 12</strong> and
 run 01–03 — you still get the full infra-diagnosis payoff. Only enable 12 if
 you have headroom. The platform stack is already installed (module 01), so
 this is a <strong>single Helm install</strong> of just the demo app:
@@ -949,29 +953,36 @@ this stays safe by construction.</p>
 <p>Cleanup is one command and idempotent. For infra scenarios it deletes exactly the
 <code>workshop-faults</code> namespace; it never touches <code>kagent</code>, <code>dynatrace</code>, the demo
 app, or any platform namespace.</p>
-<h2 id="the-dynatrace-money-shot-scenario-12-optional">The Dynatrace money shot — scenario 12 (optional)<a class="headerlink" href="#the-dynatrace-money-shot-scenario-12-optional" title="Permanent link">&para;</a></h2>
-<p>Scenarios 01–03 are diagnosable from <strong>cluster state alone</strong>. Scenario 12 is the
-one that shows off the workshop's real differentiator: the agent <strong>correlating
-Kubernetes with Dynatrace</strong>. A faulty <code>product-catalog</code> backend joins the
+<h2 id="the-partial-failure-scenario-scenario-12-optional">The partial-failure scenario — scenario 12 (optional)<a class="headerlink" href="#the-partial-failure-scenario-scenario-12-optional" title="Permanent link">&para;</a></h2>
+<p>Scenarios 01–03 are a single broken pod you can spot in a pod list. Scenario 12
+is the harder, more realistic shape: a <strong>partial</strong> failure that hides in a
+healthy-looking Service. A faulty <code>product-catalog</code> backend joins the
 <code>product-catalog</code> Service's endpoints, so a <em>fraction</em> of the astronomy shop's
 product requests are load-balanced to it and fail — <strong>intermittent 5xx</strong>, not a
-clean outage.</p>
+clean outage. Nothing is <code>CrashLoopBackOff</code>; every pod reads <code>Running</code>.</p>
+<p>This is where your observe pipeline earns its keep. The intermittent errors
+surface first as <strong>OTel signals</strong> — the partial error rate on the product path
+shows up in your <strong>Dynatrace</strong> dashboards and in <strong>Phoenix</strong>, long before a pod
+list would hint at anything wrong. That signal is the <em>symptom</em>; the agent's job
+is to find the <em>cause</em> in cluster state.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>inject<span class="w"> </span><span class="m">12</span><span class="w">      </span><span class="c1"># adds a faulty product-catalog backend (via inject.sh)</span>
 </code></pre></div>
-<p>Paste <code>scenarios/12-intermittent-5xx/prompt.md</code> and point the agent at
-<strong>Dynatrace</strong>:</p>
+<p>Paste <code>scenarios/12-intermittent-5xx/prompt.md</code>. You point the agent at the
+symptom you observed; it investigates with <code>kubectl</code>:</p>
 <blockquote>
 <p>Users of the astronomy shop (namespace <code>otel-demo</code>) are seeing intermittent
-errors when they browse products — some requests work, some fail. Use
-Dynatrace to find the open problem and its Davis root cause, correlate it with
-the cluster state, and tell me which service is actually at fault and why.</p>
+errors when they browse products — some requests work, some fail, and every
+pod looks <code>Running</code>. Investigate the <code>otel-demo</code> namespace with <code>kubectl</code>,
+find the root cause, and tell me which service is actually at fault and why.</p>
 </blockquote>
-<p>A correct answer cites an <strong>open Dynatrace problem</strong> on the product path, names
-<strong><code>product-catalog</code></strong> as the <strong>Davis root-cause entity</strong> (not the frontend that
-merely surfaces it), notes the failures are <strong>intermittent</strong> (a partial error
-rate), and corroborates with k8s that the <code>product-catalog</code> Service has an
-<strong>extra, unhealthy backend</strong> in rotation. Grade against its
-<code>expected-diagnosis.md</code> (<code>pass_threshold: 4</code>). Clean up with:</p>
+<p>A correct answer names <strong><code>product-catalog</code></strong> as the service at fault, explains
+the failures are <strong>intermittent</strong> because only a <em>fraction</em> of requests are
+load-balanced to the bad endpoint, and cites the k8s evidence: the
+<code>product-catalog</code> Service has an <strong>extra, unhealthy backend</strong> in its endpoint
+rotation (<code>kubectl get endpoints</code>, pod readiness) — not the frontend that merely
+surfaces the errors. Grade against its <code>expected-diagnosis.md</code> — the agent must
+cite at least its <code>pass_threshold</code> of the required k8s/OTel signals. Clean up
+with:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>cleanup<span class="w"> </span><span class="m">12</span><span class="w">     </span><span class="c1"># removes only the faulty backend — never the healthy demo</span>
 </code></pre></div>
 <h2 id="so-what-these-runs-feed-the-rest-of-the-workshop">So what — these runs feed the rest of the workshop<a class="headerlink" href="#so-what-these-runs-feed-the-rest-of-the-workshop" title="Permanent link">&para;</a></h2>

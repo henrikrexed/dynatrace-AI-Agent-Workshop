@@ -871,17 +871,15 @@ Dynatrace is your tenant's <code>…apps.dynatrace.com</code> URL (from module 0
 <h2 id="step-1-configure-kagent-to-create-an-agent">Step 1 — Configure kagent to create an agent<a class="headerlink" href="#step-1-configure-kagent-to-create-an-agent" title="Permanent link">&para;</a></h2>
 <p><strong>What &amp; why.</strong> kagent shipped as a clean runtime in module 01. Here you turn on
 its built-in Kubernetes tooling, point it at a model, wire the <strong>pre-deployed MCP
-servers</strong>, and deploy the <strong>SRE agent</strong> — one idempotent script does all of it.</p>
-<p><strong>Do it.</strong> Supply the MCP credentials, then install:</p>
+server</strong>, and deploy the <strong>SRE agent</strong> — one idempotent script does all of it.</p>
+<p><strong>Do it.</strong> Supply the MCP credential, then install:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GH_PAT</span><span class="o">=</span><span class="s1">'github_pat_...'</span><span class="w">                              </span><span class="c1"># fine-grained, one demo repo</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">DT_PLATFORM_TOKEN</span><span class="o">=</span><span class="s1">'dt0s16....'</span><span class="w">                       </span><span class="c1"># Dynatrace platform token</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">DT_ENVIRONMENT</span><span class="o">=</span><span class="s1">'https://&lt;env&gt;.apps.dynatrace.com'</span><span class="w">    </span><span class="c1"># platform apps URL</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>bash<span class="w"> </span>agents/install-agents.sh
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>bash<span class="w"> </span>agents/install-agents.sh
 </code></pre></div>
 <p>The script applies, in order: the MCP layer (the shared <strong><code>workshop-llm</code></strong>
-ModelConfig — DeepSeek — plus the <strong>GitHub</strong> and <strong>Dynatrace</strong> MCP tool servers),
-then the <strong>SRE agent</strong>, then the BMAD crew. kagent's built-in
+ModelConfig — DeepSeek — plus the <strong>GitHub</strong> MCP tool server), then the
+<strong>SRE agent</strong>, then the BMAD crew. kagent's built-in
 <strong><code>kagent-tool-server</code></strong> (Kubernetes + networking tools) is already enabled in
 <code>cluster/kagent/values.yaml</code>.</p>
 <p><strong>Apply this.</strong> Confirm the tools registered and the agent is Accepted:</p>
