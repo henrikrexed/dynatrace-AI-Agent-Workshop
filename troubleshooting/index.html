@@ -896,6 +896,34 @@ check the pipeline end to end:</p>
 <p>Confirm kagent <code>otel.tracing</code> points at
 <code>otel-gateway-collector.opentelemetry-operator-system.svc:4317</code>, and that the
 tenant/token scopes include <code>openTelemetryTrace.ingest</code>.</p>
+<p><strong>Gateway logs <code>HTTP Status Code 404</code> / <code>Unimplemented</code> exporting to Dynatrace.</strong>
+The spans reach the collector but Dynatrace rejects the request:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>error  Exporting failed. Dropping data.  {"otelcol.component.id": "otlphttp/dynatrace", ...
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>  "error": "... request to https://&lt;env&gt;.apps.dynatrace.com/api/v2/otlp/v1/traces
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>  responded with HTTP Status Code 404", "dropped_items": 3}
+</code></pre></div>
+<p>The tell is the host: <code>.apps.dynatrace.com</code>. That is the <strong>platform/apps</strong> domain
+(the MCP + <code>dtctl</code> URL, <code>DT_ENVIRONMENT</code>) and it does <strong>not</strong> serve <code>/api/v2/otlp</code>.
+OTLP ingest lives on the <strong>environment</strong> domain, <code>.live.dynatrace.com</code>. Set
+<code>DT_TENANT_URL</code> to the <code>.live.</code> URL (e.g. <code>https://abc12345.live.dynatrace.com</code>)
+and re-provision — <code>cluster/install.sh</code> and <code>cluster/secrets.sh</code> now auto-correct
+an <code>.apps.</code> tenant to <code>.live.</code>, but a stale secret from a previous run must be
+refreshed:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>bash<span class="w"> </span>cluster/secrets.sh<span class="w">                                           </span><span class="c1"># rebuilds secret/dynatrace-otlp</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>rollout<span class="w"> </span>restart<span class="w"> </span>deploy/otel-gateway-collector
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>opentelemetry-operator-system<span class="w"> </span>logs<span class="w"> </span>deploy/otel-gateway-collector<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>dynatrace
+</code></pre></div>
+<p><strong>Gateway logs <code>connection refused</code> to <code>phoenix.phoenix.svc...:4317</code> at startup.</strong>
+Benign and self-healing — the gateway starts before Phoenix is Ready and retries.
+Once Phoenix is up the <code>otlp/phoenix</code> exporter connects and the warnings stop
+(the <code>debug</code> exporter also keeps logging span counts). Only investigate if it
+persists after <code>kubectl -n phoenix get pods</code> shows Phoenix <code>Running</code>.</p>
+<div class="admonition note">
+<p class="admonition-title"><code>otlphttp</code>/<code>k8sattributes</code>/<code>resourcedetection</code> deprecation warnings</p>
+<p><code>"otlphttp" alias is deprecated; use "otlp_http"</code> and the matching
+<code>resource_detection</code> / <code>k8s_attributes</code> lines are informational in collector
+0.161+. The old aliases still work — not an error, no action needed.</p>
+</div>
 <hr />
 <h2 id="module-05-diagnose">Module 05 — Diagnose<a class="headerlink" href="#module-05-diagnose" title="Permanent link">&para;</a></h2>
 <p><strong><code>run.sh inject 12</code> exits 2 with "requires the otel-demo app".</strong> Scenario 12 is
@@ -924,10 +952,10 @@ namespace. Re-run it, or <code>kubectl delete ns workshop-faults --ignore-not-fo
 <h2 id="module-06-evaluate">Module 06 — Evaluate<a class="headerlink" href="#module-06-evaluate" title="Permanent link">&para;</a></h2>
 <p><strong>Phoenix UI empty.</strong> Same root cause as "no traces" above — fix the OTel
 pipeline, then re-send prompts. Confirm the forward:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>port-forward<span class="w"> </span>svc/phoenix<span class="w"> </span><span class="m">6006</span>:6006<span class="w">   </span><span class="c1"># then http://localhost:6006</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>port-forward<span class="w"> </span>svc/phoenix<span class="w"> </span><span class="m">6006</span>:6006<span class="w">   </span><span class="c1"># then http://localhost:6006</span>
 </code></pre></div>
 <p><strong>dt-evals can't resolve dependencies.</strong> Run inside <code>evals/</code> with <code>uv</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
 </code></pre></div>
 <p>The concrete suite ships in module 06 — <code>evals/dt-evals/workshop-agents.dt-eval.yaml</code>
 plus the Phoenix scripts are on <code>main</code>.</p>
