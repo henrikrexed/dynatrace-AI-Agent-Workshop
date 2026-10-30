@@ -11,26 +11,22 @@ OneAgent full-stack (lightest mode, right for a single-node Codespace).
 
 ## Secrets
 
-`secrets.sh` creates `secret/dynakube` in the `dynatrace` namespace from
-`DT_API_TOKEN`. **The secret name must equal the DynaKube name** (`dynakube`) —
-that is the operator's lookup convention.
+`secrets.sh` creates `secret/dynakube` in the `dynatrace` namespace with two keys.
+**The secret name must equal the DynaKube name** (`dynakube`) — that is the
+operator's lookup convention.
 
-Token scopes needed — the same `DT_API_TOKEN` is reused for the operator
-(`apiToken`) **and** the OTel collector, so it must carry **both** scope sets.
-Works as a classic (`dt0c01`) or platform (`dt0s16`) token:
+| Secret key | From env | Scopes needed |
+|------------|----------|---------------|
+| `apiToken` | `DYNATRACE_API_TOKEN` (operator; falls back to `DT_API_TOKEN`) | Kubernetes monitoring / ActiveGate — classic: `activeGateTokenManagement.create`, `entities.read`, `settings.read`, `settings.write`; platform: `fleet-management:activegate.tokens:create`, `fleet-management:activegate.connection-info:read`, `settings:objects:read`, `settings:objects:write` |
+| `dataIngestToken` | `DT_API_TOKEN` (ingest) | classic: `metrics.ingest`, `logs.ingest`; platform: `data-acquisition:metrics:ingest` (+ logs) |
 
-- **Kubernetes monitoring / ActiveGate** — classic: `activeGateTokenManagement.create`,
-  `entities.read`, `settings.read`, `settings.write`; platform:
-  `fleet-management:activegate.tokens:create`,
-  `fleet-management:activegate.connection-info:read`, `settings:objects:read`,
-  `settings:objects:write`.
-- **Ingest** — classic: `openTelemetryTrace.ingest`, `metrics.ingest`, `logs.ingest`;
-  platform: `openpipeline:traces:ingest`, `openpipeline:logs:ingest`,
-  `data-acquisition:metrics:ingest` (+ logs).
-
-An ingest-only token leaves the DynaKube in `Error` with `ScopeMissing` /
-`DynatraceApiError` conditions — add the Kubernetes-monitoring scopes to the same
-token.
+The two scope sets are **disjoint**, so the workshop uses two separate tokens:
+`DYNATRACE_API_TOKEN` is the operator token (it also carries the Phase-4 dt-evals
+scopes) and `DT_API_TOKEN` is the ingest token (which also feeds the OTel
+collector's OTLP export). An `apiToken` missing the Kubernetes-monitoring scopes
+leaves the DynaKube in `Error` with `ScopeMissing` / `DynatraceApiError` — add
+those scopes to `DYNATRACE_API_TOKEN`. It falls back to `DT_API_TOKEN` only when
+you deliberately use one over-scoped combined token.
 
 ## Verify
 

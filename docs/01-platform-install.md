@@ -18,7 +18,8 @@ Set these as **Codespace secrets** and rebuild/restart:
 | Secret | Used by |
 |--------|---------|
 | `DT_TENANT_URL` | Dynatrace Operator + OTLP export |
-| `DT_API_TOKEN` | Dynatrace Operator + OTLP export |
+| `DT_API_TOKEN` | OTLP export + DynaKube `dataIngestToken` (ingest) |
+| `DYNATRACE_API_TOKEN` | DynaKube operator `apiToken` (k8s-monitoring) + dt-evals |
 | `LLM_API_KEY` *(or `OPENAI_API_KEY`)* | kagent model provider (needed in module 02) |
 
 Missing secrets degrade gracefully — a component is skipped or warns, the install
@@ -74,5 +75,7 @@ BMAD crew, at which point spans start landing in both backends.
   [`cluster/tetragon/README.md`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/tetragon/README.md).
 - **OTel operator hangs** — it must use its self-signed webhook cert
   (`autoGenerateCert`), already set in `otel/operator-values.yaml`.
-- **No data in Dynatrace** — check `DT_TENANT_URL`/`DT_API_TOKEN` and token scopes
-  (`openTelemetryTrace.ingest`, `metrics.ingest`, `logs.ingest`).
+- **No data in Dynatrace** — check `DT_TENANT_URL`/`DT_API_TOKEN` and the ingest
+  scopes (`openTelemetryTrace.ingest`, `metrics.ingest`, `logs.ingest`). A DynaKube
+  in `Error` instead means `DYNATRACE_API_TOKEN` (operator) lacks the
+  k8s-monitoring scopes.
