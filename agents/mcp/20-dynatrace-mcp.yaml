@@ -4,10 +4,12 @@
 # This is the `dynatrace` tool in the SRE agent's toolset (plan §4/§5).
 #
 # There is no official published container for the Dynatrace MCP server, so we
-# run the official npm package (@dynatrace-oss/dynatrace-mcp-server) via npx
-# inside a Node base image, as a kagent-managed MCPServer (stdio) — same pattern
-# as github-mcp. kagent fronts it behind its agentgateway at
-# http://dynatrace-mcp.kagent:3000/mcp, which the RemoteMCPServer registers.
+# BAKE the official npm package (@dynatrace-oss/dynatrace-mcp-server) into a
+# purpose-built image (ISI-6938) and run it as a kagent-managed MCPServer
+# (stdio) — same pattern as github-mcp. Pre-installing the package (vs `npx -y`
+# at runtime) makes startup instant, so the MCP `initialize` handshake never
+# times out on a cold/slow Codespace. kagent fronts it behind its agentgateway
+# at http://dynatrace-mcp.kagent:3000/mcp, which the RemoteMCPServer registers.
 #
 # ── CREDENTIALS (never commit a token) ───────────────────────────────────────
 # The server needs a PLATFORM token (dt0s16.*) and the PLATFORM (apps) URL —
@@ -33,16 +35,20 @@ spec:
   transportType: stdio
   stdioTransport: {}
   deployment:
-    # Node base image (DYNATRACE_MCP_NODE_IMAGE) runs the pinned npm package
-    # (DYNATRACE_MCP_PACKAGE) — both in cluster/versions.env, injected at apply time.
-    image: ${DYNATRACE_MCP_NODE_IMAGE}
-    cmd: npx
-    args: ["-y", "${DYNATRACE_MCP_PACKAGE}"]   # default transport is stdio (no --http)
+    # Purpose-built image with the pinned @dynatrace-oss/dynatrace-mcp-server
+    # package pre-installed (ISI-6938) — the `mcp-server-dynatrace` binary is on
+    # PATH so the stdio server starts instantly. No runtime `npx -y` fetch (which
+    # used to blow the MCP `initialize` timeout on a cold/slow Codespace). Built +
+    # published by .github/workflows/build-dynatrace-mcp-image.yml; pinned in
+    # cluster/versions.env (DYNATRACE_MCP_IMAGE), injected at apply time.
+    image: ${DYNATRACE_MCP_IMAGE}
+    cmd: mcp-server-dynatrace
+    args: []                                   # default transport is stdio (no --http)
     port: 3000
     env:
       DT_ENVIRONMENT: "${DT_ENVIRONMENT}"
       DT_PLATFORM_TOKEN: "${DT_PLATFORM_TOKEN}"
-      # npx needs a writable cache/home if kagent runs the pod as non-root.
+      # Writable HOME for the non-root user (uid 1000); the server keeps no creds here.
       HOME: "/tmp"
       npm_config_cache: "/tmp/.npm"
     resources:
