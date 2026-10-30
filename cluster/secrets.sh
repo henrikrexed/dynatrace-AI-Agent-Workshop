@@ -4,9 +4,13 @@
 # and NEVER committed. Idempotent: secrets are upserted with apply.
 #
 #   DT_TENANT_URL   e.g. https://abc12345.live.dynatrace.com   (no trailing /api)
-#   DT_API_TOKEN    Dynatrace token: k8s-monitoring scopes for the operator +
-#                   OTLP ingest scopes (openTelemetryTrace/metrics/logs.ingest)
-#                   for the OTel collector.
+#   DT_API_TOKEN    Dynatrace dt0c01 token reused for BOTH jobs, so it needs the
+#                   union of scopes:
+#                     operator/ActiveGate: activeGateTokenManagement.create,
+#                       entities.read, settings.read, settings.write
+#                     OTel collector:      openTelemetryTrace.ingest,
+#                       metrics.ingest, logs.ingest
+#                   Ingest-only tokens leave the DynaKube in Error (ScopeMissing).
 #   LLM_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY  model-provider key for kagent.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
