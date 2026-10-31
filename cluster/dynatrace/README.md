@@ -8,6 +8,8 @@ OneAgent full-stack (lightest mode, right for a single-node Codespace).
 |------|------|
 | `values.yaml` | Helm values for `dynatrace/dynatrace-operator` (trimmed footprint). |
 | `dynakube.yaml` | `DynaKube` CR (`dynatrace.com/v1beta6`); `${DT_TENANT_URL}` injected by `install.sh`. |
+| `launchpad.md` | Workshop welcome page to **import into your Dynatrace tenant** (Documents / Launchpad app) so attendees land on a one-page overview — secrets, Dynatrace environment, architecture, quick start. |
+| `optimization/` | Phase 5 `dtctl`-ready Dashboard · Notebook · Guardian · Workflow (see its `README.md`). |
 
 ## Secrets
 
