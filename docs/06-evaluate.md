@@ -87,6 +87,44 @@ Sort by it to surface the weakest answers, and click any row to read the judge's
 **label, score, and explanation** next to that example's input and output. That is
 your end-to-end eval — created, run, and read entirely in the Phoenix UI.
 
+### What the UI evaluator produces: the annotation data model
+
+Each score the UI creates is a **span annotation** — a `label`, `score`, and
+`explanation` attached to the span it graded. Under the hood Phoenix writes these
+via its [`POST /v1/span_annotations`](https://docs.arize.com/phoenix) REST path
+(the same object the Python client produces):
+
+```json
+{
+  "data": [
+    {
+      "span_id": "a1b2c3d4e5f6",
+      "name": "hallucination",
+      "annotator_kind": "LLM",
+      "result": {
+        "label": "factual",
+        "score": 1.0,
+        "explanation": "The answer cites the pod name and OOMKilled status present in the tool output it was given."
+      }
+    }
+  ]
+}
+```
+
+Key fields:
+
+| Field | Meaning |
+|-------|---------|
+| `name` | Evaluator name — matches the classifier you created (`hallucination`, `relevance`) |
+| `annotator_kind` | `"LLM"` for an LLM-as-a-judge; `"HUMAN"` for manual labels |
+| `result.label` | The string the judge returned — e.g. `"factual"` or `"hallucinated"` |
+| `result.score` | Numeric score mapped from the label (`1.0` = factual/relevant, `0.0` = hallucinated/irrelevant) |
+| `result.explanation` | The judge's chain-of-thought — the sentence visible in the UI when you click a row |
+
+The `score` is what the results table sorts and aggregates. The `explanation` is
+why you click into a row: it shows you exactly which part of the answer the judge
+questioned, grounded in the tool output it saw.
+
 This is *exploratory*: fast, visual, good for discovering failure modes by hand.
 For a repeatable gate you can run in CI, use dt-evals (Part B).
 
