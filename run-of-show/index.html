@@ -1090,7 +1090,7 @@ service name with DQL, don't guess it:</p>
 <p><strong>Apply this.</strong> The shipped config enables relevance, faithfulness, hallucination,
 coherence, toxicity, and prompt-injection metrics, and sets thresholds that make
 the run <strong>exit non-zero on a breach</strong> — a ready-made CI gate.</p>
-<p><strong>Go deeper.</strong> <a href="../06-evaluate/#part-b-dt-evals-trace-sourced-evals-in-dynatrace">06 — Evaluate · Part B (dt-evals)</a>.</p>
+<p><strong>Go deeper.</strong> <a href="../06-evaluate/#part-b-dt-evals-scores-inside-dynatrace-optional">06 — Evaluate · Part B (dt-evals)</a>.</p>
 <hr />
 <h2 id="step-9-run-the-bmad-investigation">Step 9 — Run the BMAD investigation<a class="headerlink" href="#step-9-run-the-bmad-investigation" title="Permanent link">&para;</a></h2>
 <p><strong>What &amp; why.</strong> So far it's been the single SRE agent. Now show the other side of
@@ -1137,7 +1137,7 @@ quality.</p>
 hallucination, …). Because the scores live next to the spans, any low score is one
 click from the trace, prompt, and tool calls that produced it — and the run already
 <strong>exited non-zero</strong> if a threshold was breached, which is your CI gate.</p>
-<p><strong>Go deeper.</strong> <a href="../06-evaluate/#3-read-the-scores">06 — Evaluate · Part B · Read the scores</a>.</p>
+<p><strong>Go deeper.</strong> <a href="../06-evaluate/#part-b-dt-evals-scores-inside-dynatrace-optional">06 — Evaluate · Part B · Read the scores</a>.</p>
 <hr />
 <h2 id="step-12-deploy-the-notebook">Step 12 — Deploy the notebook<a class="headerlink" href="#step-12-deploy-the-notebook" title="Permanent link">&para;</a></h2>
 <p><strong>What &amp; why.</strong> You've measured cost (Step 7) and quality (Steps 10–11). The

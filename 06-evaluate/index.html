@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#06-evaluate-phoenix-dt-evals" class="md-skip">
+        <a href="#06-evaluate-phoenix" class="md-skip">
           Skip to content
         </a>
       
@@ -626,17 +626,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#what-the-ui-evaluator-produces-the-annotation-data-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What the UI evaluator produces: the annotation data model
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#script-the-same-judge-instead-optional-advanced" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -653,52 +642,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#part-b-dt-evals-trace-sourced-evals-in-dynatrace" class="md-nav__link">
+  <a href="#part-b-dt-evals-scores-inside-dynatrace-optional" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Part B — dt-evals: trace-sourced evals in Dynatrace
+        Part B — dt-evals: scores inside Dynatrace (optional)
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Part B — dt-evals: trace-sourced evals in Dynatrace">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-credentials" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Credentials
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-run-it" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Run it
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-read-the-scores" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Read the scores
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -715,10 +665,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#deterministic-grade-offline-no-key" class="md-nav__link">
+  <a href="#deterministic-grade-offline-no-key-recommended" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Deterministic grade (offline, no key)
+        Deterministic grade (offline, no key) — recommended
       
     </span>
   </a>
@@ -726,10 +676,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#in-dynatrace-dt-evals" class="md-nav__link">
+  <a href="#also-in-dynatrace-dt-evals-optional" class="md-nav__link">
     <span class="md-ellipsis">
       
-        In Dynatrace (dt-evals)
+        Also in Dynatrace (dt-evals — optional)
       
     </span>
   </a>
@@ -845,22 +795,24 @@
   
 
 
-<h1 id="06-evaluate-phoenix-dt-evals">06 — Evaluate (Phoenix + dt-evals)<a class="headerlink" href="#06-evaluate-phoenix-dt-evals" title="Permanent link">&para;</a></h1>
+<h1 id="06-evaluate-phoenix">06 — Evaluate (Phoenix)<a class="headerlink" href="#06-evaluate-phoenix" title="Permanent link">&para;</a></h1>
 <p>Observability (module 04) tells you <em>what the agent did</em> and <em>what it cost</em>. It
 does <strong>not</strong> tell you whether the answer was correct, grounded, or useful. That's
 <strong>evaluation</strong> — scoring agent outputs against expectations — and it's the step
 most teams skip, which is why their agents quietly regress.</p>
-<p>Both tools here evaluate the <strong>same <code>gen_ai.*</code> spans</strong> the OTel gateway already
-produces (module 02/04) — you don't re-run the agents to grade them, you grade
-the traces they already emitted:</p>
+<p>This module's evals read the <strong>same <code>gen_ai.*</code> spans</strong> the OTel gateway already
+produces (module 02/04) — you don't re-run the agents to grade them, you grade the
+traces they already emitted. In this workshop you <strong>create your evaluation in Arize
+Phoenix</strong>:</p>
 <ul>
-<li><strong>Phoenix (Arize)</strong> — interactive trace + eval UI, already running from
-  module 01. You <strong>build and run an LLM-as-a-judge evaluation in the UI</strong> (no
-  code) using the preconfigured DeepSeek judge — great for <em>exploratory</em> scoring.</li>
-<li><strong>dt-evals</strong> — <a href="https://github.com/dynatrace-oss/dt-evals"><code>dynatrace-oss/dt-evals</code></a>,
-  the <strong>primary</strong> path: a config-driven CLI that pulls <code>gen_ai.*</code> spans from
-  Dynatrace, scores them with a judge, and writes the results back as bizevents
-  next to the rest of your telemetry.</li>
+<li><strong>Phoenix (Arize)</strong> — the <strong>recommended path</strong>. An interactive trace + eval UI,
+  already running from module 01, where you <strong>build and run an LLM-as-a-judge
+  evaluation entirely in the web UI</strong> (no code) using the preconfigured DeepSeek
+  judge. This is <em>the</em> way you create an evaluation here.</li>
+<li><strong>dt-evals</strong> — a brief <strong>alternative</strong> for teams that want eval scores to land
+  <strong>inside Dynatrace</strong> as bizevents, next to the rest of their telemetry. In this
+  workshop it is <strong>being replaced by Phoenix</strong> — kept below as a short reference,
+  not the main event.</li>
 </ul>
 <p>Everything for this module lives under
 <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/tree/main/evals"><code>evals/</code></a>.
@@ -874,10 +826,10 @@ the same model that powers the agents — set once in <code>evals/.env</code>
 </div>
 <hr />
 <h2 id="part-a-phoenix-create-an-evaluation-in-the-ui">Part A — Phoenix: create an evaluation in the UI<a class="headerlink" href="#part-a-phoenix-create-an-evaluation-in-the-ui" title="Permanent link">&para;</a></h2>
-<p>Phoenix is the fast, visual judge: you create <strong>and</strong> run an LLM-as-a-judge
-evaluation entirely in the web UI — no code — scored by the same <strong>DeepSeek</strong>
-model that powers the agents. Open Phoenix on the forwarded Codespace port
-<strong>6006</strong>:</p>
+<p>Phoenix is <strong>how you create an evaluation in this workshop</strong>: you build <strong>and</strong> run
+an LLM-as-a-judge evaluation entirely in the web UI — no code — scored by the same
+<strong>DeepSeek</strong> model that powers the agents. Open Phoenix on the forwarded Codespace
+port <strong>6006</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>port-forward<span class="w"> </span>svc/phoenix<span class="w"> </span><span class="m">6006</span>:6006
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="c1"># then open http://localhost:6006</span>
 </code></pre></div>
@@ -925,73 +877,18 @@ given?) or <strong>relevance</strong> (does it actually answer the question?).</
 <p>The experiment's results table gains one <strong>label / score column per evaluator</strong>.
 Sort by it to surface the weakest answers, and click any row to read the judge's
 <strong>label, score, and explanation</strong> next to that example's input and output. That is
-your end-to-end eval — created, run, and read entirely in the Phoenix UI.</p>
-<h3 id="what-the-ui-evaluator-produces-the-annotation-data-model">What the UI evaluator produces: the annotation data model<a class="headerlink" href="#what-the-ui-evaluator-produces-the-annotation-data-model" title="Permanent link">&para;</a></h3>
-<p>Each score the UI creates is a <strong>span annotation</strong> — a <code>label</code>, <code>score</code>, and
-<code>explanation</code> attached to the span it graded. Under the hood Phoenix writes these
-via its <a href="https://docs.arize.com/phoenix"><code>POST /v1/span_annotations</code></a> REST path
-(the same object the Python client produces):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="p">{</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">      </span><span class="nt">"span_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"a1b2c3d4e5f6"</span><span class="p">,</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">      </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"hallucination"</span><span class="p">,</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">      </span><span class="nt">"annotator_kind"</span><span class="p">:</span><span class="w"> </span><span class="s2">"LLM"</span><span class="p">,</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">      </span><span class="nt">"result"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">        </span><span class="nt">"label"</span><span class="p">:</span><span class="w"> </span><span class="s2">"factual"</span><span class="p">,</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">        </span><span class="nt">"score"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">        </span><span class="nt">"explanation"</span><span class="p">:</span><span class="w"> </span><span class="s2">"The answer cites the pod name and OOMKilled status present in the tool output it was given."</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">      </span><span class="p">}</span>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="p">}</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">  </span><span class="p">]</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="p">}</span>
-</code></pre></div>
-<p>Key fields:</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>name</code></td>
-<td>Evaluator name — matches the classifier you created (<code>hallucination</code>, <code>relevance</code>)</td>
-</tr>
-<tr>
-<td><code>annotator_kind</code></td>
-<td><code>"LLM"</code> for an LLM-as-a-judge; <code>"HUMAN"</code> for manual labels</td>
-</tr>
-<tr>
-<td><code>result.label</code></td>
-<td>The string the judge returned — e.g. <code>"factual"</code> or <code>"hallucinated"</code></td>
-</tr>
-<tr>
-<td><code>result.score</code></td>
-<td>Numeric score mapped from the label (<code>1.0</code> = factual/relevant, <code>0.0</code> = hallucinated/irrelevant)</td>
-</tr>
-<tr>
-<td><code>result.explanation</code></td>
-<td>The judge's chain-of-thought — the sentence visible in the UI when you click a row</td>
-</tr>
-</tbody>
-</table>
-<p>The <code>score</code> is what the results table sorts and aggregates. The <code>explanation</code> is
-why you click into a row: it shows you exactly which part of the answer the judge
-questioned, grounded in the tool output it saw.</p>
-<p>This is <em>exploratory</em>: fast, visual, good for discovering failure modes by hand.
-For a repeatable gate you can run in CI, use dt-evals (Part B).</p>
+your end-to-end eval — created, run, and read entirely in the Phoenix UI: fast,
+visual, and the recommended way to grade these agents.</p>
 <h3 id="script-the-same-judge-instead-optional-advanced">Script the same judge instead (optional / advanced)<a class="headerlink" href="#script-the-same-judge-instead-optional-advanced" title="Permanent link">&para;</a></h3>
 <p>The UI flow above is the fast path. The repo also ships a small, version-pinned
 script that builds the same two classifiers (<strong>hallucination</strong> + <strong>relevance</strong>)
 from code — handy for CI, for grading the <strong>live</strong> spans in place, or when you
 have no traffic yet:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="c1"># Bundled sample dataset — no cluster/traffic needed (just a judge key):</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Live spans pulled from Phoenix, scores logged back onto the traces:</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py<span class="w"> </span>--from-phoenix
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># Bundled sample dataset — no cluster/traffic needed (just a judge key):</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Live spans pulled from Phoenix, scores logged back onto the traces:</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py<span class="w"> </span>--from-phoenix
 </code></pre></div>
 <p>It prints a per-metric summary, writes <code>phoenix/out/phoenix_eval_results.csv</code>,
 and (with <code>--from-phoenix</code>) annotates the originating spans so the labels show up
@@ -1009,76 +906,34 @@ enable content capture and re-drive the agents (see the README). The bundled
 dataset path always works offline.</p>
 </div>
 <hr />
-<h2 id="part-b-dt-evals-trace-sourced-evals-in-dynatrace">Part B — dt-evals: trace-sourced evals in Dynatrace<a class="headerlink" href="#part-b-dt-evals-trace-sourced-evals-in-dynatrace" title="Permanent link">&para;</a></h2>
-<p><a href="https://github.com/dynatrace-oss/dt-evals"><code>dt-evals</code></a> is the <strong>primary eval
-path</strong>. It samples <code>gen_ai.*</code> spans from your Dynatrace environment, masks PII,
-scores each with an LLM judge, and writes <code>gen_ai.evaluation.result</code> <strong>bizevents</strong>
-back — so a low score is one click from the trace, prompt, and tool calls that
-caused it.</p>
-<pre class="mermaid"><code>flowchart LR
-    spans["Dynatrace gen_ai.* spans"] --&gt; evals["dt-evals (sample → mask → judge)"]
-    evals --&gt; biz["bizevents"]
-    biz --&gt; out["DQL / dashboard / alert"]</code></pre>
-<h3 id="1-credentials">1. Credentials<a class="headerlink" href="#1-credentials" title="Permanent link">&para;</a></h3>
-<p>dt-evals needs (put these in <code>evals/.env</code>). You created these during onboarding —
-see
-<strong><a href="../start-benchmark/#4-create-the-required-tokens">Start the benchmark → Create the required tokens</a></strong>
-for exact scopes and where each is generated:</p>
-<table>
-<thead>
-<tr>
-<th>Var</th>
-<th>What</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>DYNATRACE_API_TOKEN</code></td>
-<td>a <strong>dedicated</strong> <code>dt0c01</code> token with <code>storage:spans:read</code> + <code>storage:events:write</code> (not the module 01 OTLP token) — <a href="../start-benchmark/#c-dynatrace-dt-evals-token-dynatrace_api_token">token C</a></td>
-</tr>
-<tr>
-<td><code>DT_ENVIRONMENT_URL</code></td>
-<td>your <code>…apps.dynatrace.com</code> URL (derived from <code>DT_TENANT_URL</code> if unset)</td>
-</tr>
-<tr>
-<td><code>OPENAI_API_KEY</code></td>
-<td>judge key — a DeepSeek key works (<a href="../start-benchmark/#d-llm-deepseek-api-key-deepseek_api_key">token D</a>)</td>
-</tr>
-<tr>
-<td><code>DT_EVAL_SERVICE</code></td>
-<td>the agent's <code>service.name</code> — <strong>discover it, don't guess</strong></td>
-</tr>
-</tbody>
-</table>
-<p>Discover the service with DQL (Dynatrace Notebook):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>fetch spans, from: now() - 2h
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>| filter isNotNull(gen_ai.operation.name) or isNotNull(gen_ai.request.model)
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>| summarize span_count = count(), by: { service.name }
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>| sort span_count desc
-</code></pre></div>
-<h3 id="2-run-it">2. Run it<a class="headerlink" href="#2-run-it" title="Permanent link">&para;</a></h3>
-<p>The CLI runs via <code>npx</code> (Node ≥ 22); the wrapper renders the config
-(<a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/workshop-agents.dt-eval.yaml"><code>evals/dt-evals/workshop-agents.dt-eval.yaml</code></a>)
-with your env values and runs <code>validate</code> + <code>run</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>./run-dt-eval.sh
-</code></pre></div>
-<p>The config enables agent-relevant metrics (relevance, faithfulness,
-hallucination, coherence, toxicity, prompt-injection) and sets alert thresholds
-that make the run <strong>exit non-zero</strong> on a breach — a ready-made CI gate.</p>
-<h3 id="3-read-the-scores">3. Read the scores<a class="headerlink" href="#3-read-the-scores" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>fetch bizevents
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>| filter event.type == "gen_ai.evaluation.result"
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
-</code></pre></div>
-<div class="admonition tip">
-<p class="admonition-title">Shared vs per-attendee tenant</p>
-<p>dt-evals reads spans <strong>and</strong> writes bizevents scoped by <code>service.name</code>. The
-workshop default is a <strong>per-attendee Dynatrace tenant</strong> (a free trial is
-enough) so nobody grades anyone else's traffic; a shared-tenant fallback with
-per-attendee <code>service.name</code> suffixes is documented in
-<a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/README.md#tenant-model-74"><code>evals/dt-evals/README.md</code></a>.</p>
+<h2 id="part-b-dt-evals-scores-inside-dynatrace-optional">Part B — dt-evals: scores inside Dynatrace (optional)<a class="headerlink" href="#part-b-dt-evals-scores-inside-dynatrace-optional" title="Permanent link">&para;</a></h2>
+<div class="admonition note">
+<p class="admonition-title">Phoenix (Part A) is the workshop's recommended path</p>
+<p>dt-evals remains for teams that want eval scores <strong>inside Dynatrace</strong>. In this
+workshop it is <strong>being replaced by Phoenix</strong> — kept here as a short reference,
+not a required step.</p>
 </div>
+<p><a href="https://github.com/dynatrace-oss/dt-evals"><code>dt-evals</code></a> is a config-driven CLI that
+samples <code>gen_ai.*</code> spans from your Dynatrace environment, scores each with an LLM
+judge, and writes <code>gen_ai.evaluation.result</code> <strong>bizevents</strong> back — so a low score is
+one click from the trace, prompt, and tool calls that caused it.</p>
+<p><strong>Credentials</strong> live in <code>evals/.env</code>: a <strong>dedicated</strong> Dynatrace <code>dt0c01</code> token
+(<code>storage:spans:read</code> + <code>storage:events:write</code>), your <code>…apps.dynatrace.com</code> URL, a
+judge key (a DeepSeek key works), and <code>DT_EVAL_SERVICE</code> set to the agent's
+<code>service.name</code> (defaults to <code>sre-agent</code>). For the exact scopes and where each token
+is generated, see
+<strong><a href="../start-benchmark/#4-create-the-required-tokens">Start the benchmark → Create the required tokens</a></strong>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>./run-dt-eval.sh<span class="w">          </span><span class="c1"># renders the config, then runs validate + run</span>
+</code></pre></div>
+<p>The run exits non-zero on a threshold breach — a ready-made CI gate. Read the
+scores back in a Dynatrace Notebook:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>fetch bizevents
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>| filter event.type == "gen_ai.evaluation.result"
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
+</code></pre></div>
+<p>Details, including the shared-vs-per-attendee tenant model:
+<a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/README.md"><code>evals/dt-evals/README.md</code></a>.</p>
 <hr />
 <h2 id="part-c-grade-a-diagnosis-against-the-answer-key">Part C — grade a <em>diagnosis</em> against the answer key<a class="headerlink" href="#part-c-grade-a-diagnosis-against-the-answer-key" title="Permanent link">&para;</a></h2>
 <p>Parts A/B judge generic quality (grounded? relevant? toxic?). The <strong>diagnostic
@@ -1097,22 +952,22 @@ forbidden cross-channel claims?</p>
 <p>Because scenarios 01–03 sit on <strong>distinct evidence channels</strong> (logs vs. events vs.
 <code>OOMKilled</code> status), a cross-channel claim is an unambiguous fail — so this grades
 objectively, even with no judge model.</p>
-<h3 id="deterministic-grade-offline-no-key">Deterministic grade (offline, no key)<a class="headerlink" href="#deterministic-grade-offline-no-key" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>evals
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_diagnosis_eval.py<span class="w">        </span><span class="c1"># bundled golden + confab diagnoses</span>
+<h3 id="deterministic-grade-offline-no-key-recommended">Deterministic grade (offline, no key) — recommended<a class="headerlink" href="#deterministic-grade-offline-no-key-recommended" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">cd</span><span class="w"> </span>evals
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>python<span class="w"> </span>phoenix/run_diagnosis_eval.py<span class="w">        </span><span class="c1"># bundled golden + confab diagnoses</span>
 </code></pre></div>
 <p>It prints a PASS/FAIL per diagnosis and writes
 <code>phoenix/out/diagnosis_eval_results.csv</code>. Add <code>--llm-judge</code> (needs a judge key) to
 also run an LLM root-cause grader, or <code>--from-phoenix</code> to grade the agent's <em>live</em>
 diagnosis spans and annotate them back onto the traces.</p>
-<h3 id="in-dynatrace-dt-evals">In Dynatrace (dt-evals)<a class="headerlink" href="#in-dynatrace-dt-evals" title="Permanent link">&para;</a></h3>
-<p>Each answer key is also rendered into a dt-evals custom evaluator. Register the
-one for the scenario you ran, then grade its spans:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="c1"># Register once — paste the judge prompt from evaluators/diagnosis-01-crashloopbackoff.md</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>./run-dt-eval.sh<span class="w"> </span>evaluators<span class="w"> </span>add
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Then grade the diagnosis spans for that scenario:</span>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>./run-dt-eval.sh<span class="w"> </span>--config<span class="w"> </span>scenario-diagnosis.dt-eval.yaml<span class="w"> </span>--metric<span class="w"> </span>diagnosis-01-crashloopbackoff
+<h3 id="also-in-dynatrace-dt-evals-optional">Also in Dynatrace (dt-evals — optional)<a class="headerlink" href="#also-in-dynatrace-dt-evals-optional" title="Permanent link">&para;</a></h3>
+<p>For teams using Part B, each answer key also renders into a dt-evals custom
+evaluator. Register the one for the scenario you ran, then grade its spans:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1"># Register once — paste the judge prompt from evaluators/diagnosis-01-crashloopbackoff.md</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>./run-dt-eval.sh<span class="w"> </span>evaluators<span class="w"> </span>add
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Then grade the diagnosis spans for that scenario:</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>./run-dt-eval.sh<span class="w"> </span>--config<span class="w"> </span>scenario-diagnosis.dt-eval.yaml<span class="w"> </span>--metric<span class="w"> </span>diagnosis-01-crashloopbackoff
 </code></pre></div>
 <p>Swap in the evaluator name for the scenario you ran —
 <code>diagnosis-01-crashloopbackoff</code>, <code>diagnosis-02-imagepullbackoff</code>,
@@ -1151,9 +1006,11 @@ token/cost/latency drive <strong><a href="../07-optimize/">07 — Optimize</a></
 <h2 id="what-you-achieved-acceptance">What you achieved (acceptance)<a class="headerlink" href="#what-you-achieved-acceptance" title="Permanent link">&para;</a></h2>
 <ul>
 <li>A Phoenix eval run produces labelled scores you can inspect in the UI (or the
-  CSV) — even offline against the bundled dataset.</li>
-<li>A dt-evals run scores the agents' real traces and lands the results in
-  Dynatrace as queryable bizevents, with a CI-friendly pass/fail gate.</li>
+  CSV) — even offline against the bundled dataset. This is the workshop's path to
+  creating an evaluation.</li>
+<li><em>(Optional)</em> A dt-evals run lands the same kind of scores <strong>inside Dynatrace</strong> as
+  queryable bizevents, with a CI-friendly pass/fail gate — for teams that want them
+  there.</li>
 <li>A diagnosis-grading run (Part C) scores an SRE-agent diagnosis against a
   scenario answer key — PASS/FAIL against registered ground truth, offline or in
   Dynatrace.</li>
