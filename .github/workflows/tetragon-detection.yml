@@ -59,12 +59,13 @@ jobs:
       - name: Install kind / kubectl / helm
         run: |
           set -euxo pipefail
-          curl -fsSLo /usr/local/bin/kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
-          chmod +x /usr/local/bin/kind
-          curl -fsSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
-          chmod +x /usr/local/bin/kubectl
+          tmp="$(mktemp -d)"; cd "$tmp"
+          curl -fsSLo kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          curl -fsSLo kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
           curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" | tar -xz
-          sudo mv linux-amd64/helm /usr/local/bin/helm
+          sudo install -m 0755 kind /usr/local/bin/kind
+          sudo install -m 0755 kubectl /usr/local/bin/kubectl
+          sudo install -m 0755 linux-amd64/helm /usr/local/bin/helm
           kind version && kubectl version --client && helm version
 
       - name: Create kind cluster
