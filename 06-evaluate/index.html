@@ -1109,9 +1109,16 @@ diagnosis spans and annotate them back onto the traces.</p>
 <p>Each answer key is also rendered into a dt-evals custom evaluator. Register the
 one for the scenario you ran, then grade its spans:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>npx<span class="w"> </span>-y<span class="w"> </span><span class="s2">"</span><span class="nv">$DT_EVALS_PKG</span><span class="s2">"</span><span class="w"> </span>evaluators<span class="w"> </span>add<span class="w">            </span><span class="c1"># paste evaluators/diagnosis-&lt;id&gt;.md</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>./run-dt-eval.sh<span class="w"> </span>--config<span class="w"> </span>scenario-diagnosis.dt-eval.yaml<span class="w"> </span>--metric<span class="w"> </span>diagnosis-&lt;id&gt;
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="c1"># Register once — paste the judge prompt from evaluators/diagnosis-01-crashloopbackoff.md</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>./run-dt-eval.sh<span class="w"> </span>evaluators<span class="w"> </span>add
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Then grade the diagnosis spans for that scenario:</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>./run-dt-eval.sh<span class="w"> </span>--config<span class="w"> </span>scenario-diagnosis.dt-eval.yaml<span class="w"> </span>--metric<span class="w"> </span>diagnosis-01-crashloopbackoff
 </code></pre></div>
+<p>Swap in the evaluator name for the scenario you ran —
+<code>diagnosis-01-crashloopbackoff</code>, <code>diagnosis-02-imagepullbackoff</code>,
+<code>diagnosis-03-oomkilled</code>, or <code>diagnosis-12-intermittent-5xx</code> (one per
+<code>evaluators/*.md</code>). <code>./run-dt-eval.sh evaluators add</code> is a passthrough to the
+pinned <code>dt-evals</code> CLI, so there is nothing to export first.</p>
 <p>Correct diagnoses score 1, misses score 0 — a per-scenario pass/fail bizevent next
 to the trace. Details:
 <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/ground-truth/README.md"><code>evals/ground-truth/README.md</code></a>.</p>
