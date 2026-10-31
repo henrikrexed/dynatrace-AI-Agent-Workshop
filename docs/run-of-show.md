@@ -102,21 +102,25 @@ kubectl -n tetragon exec ds/tetragon -c tetragon -- \
   tetra getevents -o compact --namespace agent-sandbox
 ```
 
-**Apply this.** In a second terminal, schedule a compliant pod that reads its own
-service-account token — exactly what a credential-stealing agent would do:
+**Apply this.** In a second terminal, schedule a compliant pod that reads
+credentials **in a loop** — `/etc/passwd` and its own service-account token,
+exactly what a credential-stealing agent would do. The loop matters: `tetra
+getevents` is a live tail, so a one-shot read can land before you are watching;
+reading every 2 s guarantees the trigger lands inside your watch window.
 
 ```bash
 kubectl -n agent-sandbox run snoop --image=busybox:1.36 --restart=Never \
-  --overrides='{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"]}]}}' \
-  --command -- sh -c "cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"
+  --overrides='{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","while true; do cat /etc/passwd /var/run/secrets/kubernetes.io/serviceaccount/token >/dev/null 2>&1; sleep 2; done"]}]}}' \
+  --command -- sh -c 'while true; do cat /etc/passwd /var/run/secrets/kubernetes.io/serviceaccount/token >/dev/null 2>&1; sleep 2; done'
 
-kubectl -n agent-sandbox delete pod snoop --ignore-not-found   # clean up; leave the policy running
+# when you have seen the event, stop the loop and clean up (leave the policy running)
+kubectl -n agent-sandbox delete pod snoop --ignore-not-found
 ```
 
-The first terminal prints a `process_kprobe` line for `security_file_permission`
-on the `snoop` pod, naming `cat` and the token path — your detection firing. The
-pod ran clean under Pod Security *and* was caught reading a credential, because
-runtime detection sees what admission cannot.
+Within a couple of seconds the first terminal prints a `process_kprobe` line for
+`security_file_permission` on the `snoop` pod, naming `cat` and the sensitive
+path — your detection firing. The pod ran clean under Pod Security *and* was
+caught reading a credential, because runtime detection sees what admission cannot.
 
 **Go deeper.** [03 — Secure agents](03-secure.md#detect-an-agent-reading-sensitive-files).
 
