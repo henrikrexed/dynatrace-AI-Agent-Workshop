@@ -20,9 +20,9 @@ content:
       It is the understand-first companion to `ai-agent-optimization-before-after.notebook.yaml` (that one cuts cost; this one explains the run first). Run it top-to-bottom.
 
       **How this crew emits telemetry** — reconciled against the live tenant, correct these to whatever *your* crew emits:
-      - Each LLM call is a `call_llm` span (framework) **and** a `generate_content <model>` span (model, `gen_ai.operation.name == "generate_content"`) — the **same** call instrumented twice. Count `call_llm` so you never double-count.
+      - An LLM call is a `generate_content <model>` span — key on the OTel GenAI operation `gen_ai.operation.name == "generate_content"`, never on a framework span name. (Some SDK layers also wrap each call in an extra framework/HTTP span; keying on the `generate_content` operation counts each LLM call exactly once.)
       - Tool calls are `gen_ai.operation.name == "execute_tool"`, tool name in `gen_ai.tool.name`. Drop `gen_ai.tool.name == "(merged tools)"` — a Dynatrace span-merge artifact.
-      - Tokens live on `gen_ai.usage.input_tokens` / `gen_ai.usage.output_tokens`.
+      - Tokens live on `gen_ai.usage.input_tokens` / `gen_ai.usage.output_tokens` (on the `generate_content` spans).
       - A unit of work for **one agent** is `gen_ai.task.id` (single-service). A full **cross-agent** run is `trace.id` — one trace spans the whole crew.
       - Time order is `start_time` (`timestamp` is null on spans).
   - id: d3619122-c973-49d0-a831-4a08ad8d2cf3
@@ -30,7 +30,7 @@ content:
     markdown: |-
       ## 1 · Who is in the crew
 
-      These are your agents. Every service in the `kagent` namespace that actually makes an LLM call is an agent (the filter `llmCalls > 0` drops the `kagent-controller` plumbing). `llmCalls` is how many times it reasoned; `toolCalls` is how often it acted.
+      These are your agents. Every service in the `kagent` namespace that actually makes an LLM call (a `generate_content` operation) is an agent (the filter `llmCalls > 0` drops the `kagent-controller` plumbing). `llmCalls` is how many times it reasoned; `toolCalls` is how often it acted.
   - drilldownPath: []
     filterSegments: []
     id: 270723c7-4eea-4073-a7e3-dfe912c7e745
@@ -46,7 +46,7 @@ content:
           fetch spans
           | filter service.namespace == "kagent"
           | summarize spans = count(),
-              llmCalls = countIf(span.name == "call_llm"),
+              llmCalls = countIf(gen_ai.operation.name == "generate_content"),
               toolCalls = countIf(gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"),
               by:{agent = service.name}
           | filter llmCalls > 0
@@ -58,7 +58,7 @@ content:
     markdown: |-
       ## 2 · What operations an agent performs
 
-      This is the vocabulary. Everything an agent emits falls into a handful of activities: it **reasons** (`call_llm` / `generate_content`), it **acts** (`execute_tool`), and it **talks to other agents** (`a2a.*` messaging). Note `call_llm` and `generate_content` come out equal — that is the same LLM call seen twice (framework + model span).
+      This is the vocabulary. Everything an agent emits falls into a handful of activities: it **reasons** (`generate_content` — the OTel GenAI LLM-call operation), it **acts** (`execute_tool`), and it **talks to other agents** (`a2a.*` messaging + `invoke_agent`). Everything else — framework wrappers, HTTP plumbing — is the `Other` bucket you can ignore while reading the run.
   - drilldownPath: []
     filterSegments: []
     id: 2316ad1e-d22d-46dc-bed4-73d1df4b02be
@@ -73,9 +73,9 @@ content:
         value: |-
           fetch spans
           | filter service.namespace == "kagent"
-          | fieldsAdd activity = if(span.name == "call_llm", "LLM call (call_llm)",
-              else: if(gen_ai.operation.name == "generate_content", "LLM generate_content (model span)",
+          | fieldsAdd activity = if(gen_ai.operation.name == "generate_content", "LLM call (generate_content)",
               else: if(gen_ai.operation.name == "execute_tool", "Tool call (execute_tool)",
+              else: if(gen_ai.operation.name == "invoke_agent", "Agent invocation (invoke_agent)",
               else: if(startsWith(span.name, "a2a."), "A2A messaging",
               else: "Other (HTTP / framework)"))))
           | summarize spans = count(), by:{activity}
@@ -87,7 +87,7 @@ content:
     markdown: |-
       ## 3 · Anatomy of one task
 
-      This is one run, step by step. The sub-query picks the task with the **most `call_llm` hops** (the busiest reasoning loop — the most interesting example) and joins its spans back on `gen_ai.task.id`. Read top-to-bottom: an LLM call, then the tools it decided to run, then the next LLM call. The `generate_content` rows are the model-side twin of each `call_llm` — the double instrumentation from section 2. `kagent__NS__<agent>` tools are hand-offs to sub-agents (see section 4).
+      This is one run, step by step. The sub-query picks the task with the **most `generate_content` hops** (the busiest reasoning loop — the most interesting example) and joins its spans back on `gen_ai.task.id`. Read top-to-bottom: an LLM call (`generate_content`), then the tools it decided to run (`execute_tool`), then the next LLM call. `kagent__NS__<agent>` tools are hand-offs to sub-agents (see section 4).
   - drilldownPath: []
     filterSegments: []
     id: 72bfc46c-d445-4d55-b3b6-4a0a47c4a55c
@@ -104,12 +104,12 @@ content:
           | filter service.namespace == "kagent"
           | join [
               fetch spans
-              | filter service.namespace == "kagent" and span.name == "call_llm"
+              | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
               | summarize hops = count(), by:{gen_ai.task.id}
               | sort hops desc, gen_ai.task.id asc
               | limit 1
             ], on:{gen_ai.task.id}, kind:inner, fields:{}
-          | filter span.name == "call_llm" or gen_ai.operation.name == "execute_tool" or gen_ai.operation.name == "generate_content"
+          | filter gen_ai.operation.name == "generate_content" or gen_ai.operation.name == "execute_tool"
           | filter gen_ai.tool.name != "(merged tools)" or isNull(gen_ai.tool.name)
           | fieldsAdd durationMs = duration / 1000000
           | fields start_time, agent = service.name, step = span.name, operation = gen_ai.operation.name, durationMs
@@ -147,7 +147,7 @@ content:
     markdown: |-
       ## 5 · The reasoning loop
 
-      This is where a loop re-reads context. Same busiest task as section 3, but only its `call_llm` hops in order. Watch `inputTokens` climb hop after hop while `outputTokens` stays small: every hop re-sends the whole growing conversation back to the model. That growth is the single biggest lever in the optimize guide (§2c). A flat line here means a tight agent; a staircase means a context that never gets trimmed.
+      This is where a loop re-reads context. Same busiest task as section 3, but only its `generate_content` (LLM-call) hops in order. Watch `inputTokens` climb hop after hop while `outputTokens` stays small: every hop re-sends the whole growing conversation back to the model. That growth is the single biggest lever in the optimize guide (§2c). A flat line here means a tight agent; a staircase means a context that never gets trimmed.
   - drilldownPath: []
     filterSegments: []
     id: 3bb30b5c-2997-47b8-9827-ea61f7be9b64
@@ -161,17 +161,17 @@ content:
           to: now()
         value: |-
           fetch spans
-          | filter service.namespace == "kagent" and span.name == "call_llm"
+          | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
           | join [
               fetch spans
-              | filter service.namespace == "kagent" and span.name == "call_llm"
+              | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
               | summarize hops = count(), by:{gen_ai.task.id}
               | sort hops desc, gen_ai.task.id asc
               | limit 1
             ], on:{gen_ai.task.id}, kind:inner, fields:{}
           | fields start_time, agent = service.name, inputTokens = gen_ai.usage.input_tokens, outputTokens = gen_ai.usage.output_tokens
           | sort start_time asc
-    title: The reasoning loop — input tokens growing per call_llm hop
+    title: The reasoning loop — input tokens growing per generate_content hop
     type: dql
   - id: f0de15fc-729a-42e0-9df1-fe08e8aefef3
     type: markdown
@@ -195,7 +195,7 @@ content:
           | filter service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
           | join [
               fetch spans
-              | filter service.namespace == "kagent" and span.name == "call_llm"
+              | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
               | summarize hops = count(), by:{gen_ai.task.id}
               | sort hops desc, gen_ai.task.id asc
               | limit 1
@@ -210,7 +210,7 @@ content:
     markdown: |-
       ## 7 · Token accumulation across the run
 
-      This is the bill, built one hop at a time. Same busiest task, every `call_llm` hop with its `inputTokens`, `outputTokens`, and `hopCost` (the two added). Sum the `inputTokens` column and you get the run's input bill — on the reference tenant that is ~182k input tokens vs ~14k output across 10 hops (≈13:1). The last hop alone costs several times the first, purely because the context grew. That is why trimming the loop (section 5) beats trimming almost anything else.
+      This is the bill, built one hop at a time. Same busiest task, every `generate_content` (LLM-call) hop with its `inputTokens`, `outputTokens`, and `hopCost` (the two added). Sum the `inputTokens` column and you get the run's input bill — on the reference tenant that is ~182k input tokens vs ~14k output across 10 hops (≈13:1). The last hop alone costs several times the first, purely because the context grew. That is why trimming the loop (section 5) beats trimming almost anything else.
   - drilldownPath: []
     filterSegments: []
     id: 2ace488c-a0aa-48f8-a39c-7a25349b9eb2
@@ -224,10 +224,10 @@ content:
           to: now()
         value: |-
           fetch spans
-          | filter service.namespace == "kagent" and span.name == "call_llm"
+          | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
           | join [
               fetch spans
-              | filter service.namespace == "kagent" and span.name == "call_llm"
+              | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
               | summarize hops = count(), by:{gen_ai.task.id}
               | sort hops desc, gen_ai.task.id asc
               | limit 1
@@ -235,7 +235,7 @@ content:
           | fieldsAdd hopCost = gen_ai.usage.input_tokens + gen_ai.usage.output_tokens
           | fields start_time, inputTokens = gen_ai.usage.input_tokens, outputTokens = gen_ai.usage.output_tokens, hopCost
           | sort start_time asc
-    title: The token bill — per call_llm hop, in order
+    title: The token bill — per generate_content hop, in order
     type: dql
   - id: e5ca84ea-a826-4ebe-a97a-b4f63aaf9663
     type: markdown
