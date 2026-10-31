@@ -101,15 +101,16 @@ spec:
           # dropped: a dozen k8s tools the SRE agent never invoked
 ```
 
-List the tools the agent *actually* calls straight from the traces, then diff
-against its granted set:
+List the tools each agent *actually* calls straight from the traces (grouped by
+agent so you see the whole crew at once), then diff against each agent's granted
+set:
 
 ```
 fetch spans
-| filter service.namespace == "kagent" and service.name == "seta_sre_investigator"
+| filter service.namespace == "kagent"
     and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
-| summarize calls = count(), by:{tool = gen_ai.tool.name}
-| sort calls desc
+| summarize calls = count(), by:{agent = service.name, tool = gen_ai.tool.name}
+| sort agent asc, calls desc
 ```
 
 !!! example "Measure the schema tax directly"
@@ -126,6 +127,64 @@ Re-apply (`bash agents/install-agents.sh`), send the same prompts, and compare
 input-token counts in Dynatrace. Fewer tools → smaller prompts → lower cost on
 *every* call.
 
+#### Tool-coverage lookup — the never-called tools, by name
+
+The query above lists the tools an agent *did* call. The optimization you want
+is the **complement**: which granted tools did it **never** call? Those are the
+pure-overhead schemas to drop first. Left-join the agent's *granted* tool set
+against the tools it actually called, so zero-call tools surface explicitly.
+
+The granted set ships as a lookup table —
+[`cluster/dynatrace/optimization/tool-grants.lookup.json`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/tree/main/cluster/dynatrace/optimization/tool-grants.lookup.json) —
+generated from the agents' `toolNames`. The query below embeds the SRE agent's
+15 granted tools inline via `data record(...)` (so it's self-contained) and
+`lookup`s the traces for each tool's call count; `coalesce(..., 0)` turns a
+never-called tool into a `0`, and the `verdict` column flags the drop candidates:
+
+```
+data record(tool = "k8s_get_resources"),
+     record(tool = "k8s_describe_resource"),
+     record(tool = "k8s_get_resource_yaml"),
+     record(tool = "k8s_get_pod_logs"),
+     record(tool = "k8s_get_events"),
+     record(tool = "k8s_get_available_api_resources"),
+     record(tool = "k8s_get_cluster_configuration"),
+     record(tool = "k8s_check_service_connectivity"),
+     record(tool = "k8s_apply_manifest"),
+     record(tool = "k8s_patch_resource"),
+     record(tool = "k8s_scale"),
+     record(tool = "k8s_rollout"),
+     record(tool = "k8s_label_resource"),
+     record(tool = "k8s_annotate_resource"),
+     record(tool = "k8s_execute_command")
+| lookup [
+    fetch spans
+    | filter service.namespace == "kagent"
+        and service.name == "seta_sre_investigator"
+        and gen_ai.operation.name == "execute_tool"
+        and gen_ai.tool.name != "(merged tools)"
+    | summarize calls = count(), by:{tool = gen_ai.tool.name}
+  ], sourceField:tool, lookupField:tool, prefix:"called_"
+| fieldsAdd calls = coalesce(called_calls, 0)
+| fieldsAdd verdict = if(calls == 0, "NEVER CALLED — drop candidate", else: "used")
+| fieldsRemove called_tool, called_calls
+| sort calls asc
+```
+
+The `service.name == "seta_sre_investigator"` filter here is **intentional**:
+coverage is a per-agent question ("which of *this* agent's granted tools did
+*this* agent never call"). To cover another agent, swap the service name and the
+`data record(...)` block for that agent's rows from the lookup file. The
+dashboard's **Tool coverage** tile and the notebook's **tool-coverage** cell run
+exactly this query.
+
+!!! tip "Tool-call count is the headline"
+    The dashboard's top row carries a **Tool calls** single-value tile (total
+    `execute_tool` spans) right next to LLM calls — so the never-/rarely-used
+    angle is visible before you even scroll. A tool with **zero** calls in the
+    coverage table is an unconditional drop; a tool with a handful of calls on a
+    large sample is a *rarely-used* candidate worth questioning.
+
 ### b) Tighten the system prompt
 
 A rambling system prompt is a fixed tax on every request. Shorten it to the
@@ -140,7 +199,7 @@ the hops that don't earn their tokens.
 
 ```
 fetch spans
-| filter service.namespace == "kagent" and span.name == "call_llm"
+| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
 | summarize llmCalls = count(), inputTokens = sum(gen_ai.usage.input_tokens),
     by:{agent = service.name, task = gen_ai.task.id}
 | filter llmCalls >= 5
@@ -171,17 +230,18 @@ crew to **DeepSeek** for cost; per-agent tuning goes further.
 ## 3. Prove the win
 
 Open the **before/after notebook** (deployed above). Its §5 cell measures the one
-number that moves — average input tokens per `call_llm` — and the section
-time-picker is how you switch the *before* and *after* windows:
+number that moves — average input tokens per LLM call, **per agent** — and the
+section time-picker is how you switch the *before* and *after* windows. Read the
+row for the agent you changed and compare it across the two windows:
 
 ```
 fetch spans
-| filter service.namespace == "kagent" and service.name == "seta_sre_investigator"
-    and span.name == "call_llm" and isNotNull(gen_ai.usage.input_tokens)
+| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
 | summarize llmCalls = count(),
     avgInputPerCall    = round(avg(gen_ai.usage.input_tokens)),
     medianInputPerCall = round(median(gen_ai.usage.input_tokens)),
-    totalInputTokens   = sum(gen_ai.usage.input_tokens)
+    totalInputTokens   = sum(gen_ai.usage.input_tokens), by:{service.name}
+| sort avgInputPerCall desc
 ```
 
 The procedure, in order:
