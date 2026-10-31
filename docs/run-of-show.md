@@ -304,7 +304,7 @@ fetch spans, from: now() - 2h
 coherence, toxicity, and prompt-injection metrics, and sets thresholds that make
 the run **exit non-zero on a breach** — a ready-made CI gate.
 
-**Go deeper.** [06 — Evaluate · Part B (dt-evals)](06-evaluate.md#part-b-dt-evals-trace-sourced-evals-in-dynatrace).
+**Go deeper.** [06 — Evaluate · Part B (dt-evals)](06-evaluate.md#part-b-dt-evals-scores-inside-dynatrace-optional).
 
 ---
 
@@ -373,7 +373,7 @@ hallucination, …). Because the scores live next to the spans, any low score is
 click from the trace, prompt, and tool calls that produced it — and the run already
 **exited non-zero** if a threshold was breached, which is your CI gate.
 
-**Go deeper.** [06 — Evaluate · Part B · Read the scores](06-evaluate.md#3-read-the-scores).
+**Go deeper.** [06 — Evaluate · Part B · Read the scores](06-evaluate.md#part-b-dt-evals-scores-inside-dynatrace-optional).
 
 ---
 
