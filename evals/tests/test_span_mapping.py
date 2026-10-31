@@ -127,5 +127,102 @@ def test_attribute_columns_lists_present_keys_for_diagnostics():
     assert cols == ["attributes.gen_ai.system", "attributes.http.method"]
 
 
+# --- fetch_llm_spans: server-side LLM filter + graceful fallback (ISI-6962) ---
+import types as _types  # noqa: E402
+
+
+class _FakeSpans:
+    """Stand-in for client.spans — records how get_spans_dataframe was called."""
+
+    def __init__(self, filtered_df, unfiltered_df, raise_on_filter=False):
+        self._filtered_df = filtered_df
+        self._unfiltered_df = unfiltered_df
+        self._raise_on_filter = raise_on_filter
+        self.calls = []
+
+    def get_spans_dataframe(self, *, project_identifier, limit, query=None):
+        self.calls.append({"query": query, "limit": limit})
+        if query is not None:
+            if self._raise_on_filter:
+                raise RuntimeError("filter DSL unsupported in this version")
+            return self._filtered_df
+        return self._unfiltered_df
+
+
+class _FakeClient:
+    def __init__(self, spans):
+        self.spans = spans
+
+
+@pytest.fixture
+def fake_spanquery(monkeypatch):
+    """Inject a phoenix.client.types.spans.SpanQuery so the filtered path runs
+    without the real phoenix-client installed. Returns a list that captures the
+    .where() conditions so a test can assert the exact DSL used."""
+    captured = []
+
+    class _SpanQuery:
+        def where(self, condition):
+            captured.append(condition)
+            return self
+
+    mod = _types.ModuleType("phoenix.client.types.spans")
+    mod.SpanQuery = _SpanQuery
+    monkeypatch.setitem(sys.modules, "phoenix", _types.ModuleType("phoenix"))
+    monkeypatch.setitem(sys.modules, "phoenix.client", _types.ModuleType("phoenix.client"))
+    monkeypatch.setitem(sys.modules, "phoenix.client.types",
+                        _types.ModuleType("phoenix.client.types"))
+    monkeypatch.setitem(sys.modules, "phoenix.client.types.spans", mod)
+    return captured
+
+
+def test_fetch_llm_spans_filters_server_side(fake_spanquery):
+    df = pd.DataFrame([{"attributes.input.value": "q", "attributes.output.value": "a"}])
+    spans = _FakeSpans(filtered_df=df, unfiltered_df=pd.DataFrame())
+    out, filtered = sm.fetch_llm_spans(_FakeClient(spans), "default", limit=200)
+
+    assert filtered is True
+    assert len(out) == 1
+    # The exact DSL went through SpanQuery().where(...) once.
+    assert fake_spanquery == [sm.LLM_SPAN_FILTER] == ["span_kind == 'LLM'"]
+    # Only the filtered query ran — no wasteful second (unfiltered) pull.
+    assert len(spans.calls) == 1
+    assert spans.calls[0]["query"] is not None
+    assert spans.calls[0]["limit"] == 200
+
+
+def test_fetch_llm_spans_falls_back_when_filter_empty(fake_spanquery):
+    all_traffic = pd.DataFrame([{"attributes.http.method": "GET"}])
+    spans = _FakeSpans(filtered_df=pd.DataFrame(), unfiltered_df=all_traffic)
+    out, filtered = sm.fetch_llm_spans(_FakeClient(spans), "default", limit=200)
+
+    assert filtered is False          # caller warns the result is unfiltered
+    assert len(out) == 1
+    assert [c["query"] is None for c in spans.calls] == [False, True]  # tried filter, then fell back
+
+
+def test_fetch_llm_spans_falls_back_when_filter_errors(fake_spanquery):
+    all_traffic = pd.DataFrame([{"attributes.http.method": "GET"}])
+    spans = _FakeSpans(filtered_df=pd.DataFrame(), unfiltered_df=all_traffic,
+                       raise_on_filter=True)
+    out, filtered = sm.fetch_llm_spans(_FakeClient(spans), "default", limit=500)
+
+    assert filtered is False
+    assert len(out) == 1
+    assert spans.calls[-1]["query"] is None  # unfiltered fallback still ran
+
+
+def test_fetch_llm_spans_falls_back_without_phoenix_client():
+    """No phoenix-client importable (the real offline env) → unfiltered pull."""
+    all_traffic = pd.DataFrame([{"attributes.gen_ai.prompt.0.content": "Q"}])
+    spans = _FakeSpans(filtered_df=pd.DataFrame(), unfiltered_df=all_traffic)
+    # phoenix.client.types.spans is NOT injected here → import raises → fallback.
+    out, filtered = sm.fetch_llm_spans(_FakeClient(spans), "default", limit=200)
+
+    assert filtered is False
+    assert len(out) == 1
+    assert spans.calls == [{"query": None, "limit": 200}]  # went straight to unfiltered
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
