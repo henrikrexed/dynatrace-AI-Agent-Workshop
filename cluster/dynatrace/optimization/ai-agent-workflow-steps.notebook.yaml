@@ -122,6 +122,10 @@ content:
       ## 4 · The A2A hand-offs
 
       This is the workflow graph. In this crew an agent delegates to another agent by calling it **as a tool** named `kagent__NS__<agent>`. Stripping that prefix gives the edge `fromAgent → toAgent`. (Hand-offs cross `service.name`, so they are correlated by `trace.id`, not `gen_ai.task.id` — a single task.id stays inside one service.) Here the orchestrator is the hub that fans work out to the specialists.
+
+      **Returns nothing?** That's expected unless the **BMAD crew** has run. A2A hand-offs (`kagent__NS__<agent>` tool calls) are only emitted when the **`bmad-orchestrator`** delegates to its specialists — the solo `sre-agent` (the default k8s-only investigation path) calls only `kagent-tool-server` tools and produces **zero** `kagent__` spans by design. To populate this graph, run the BMAD crew (the A2A sample prompt from module 02) and re-run the cell. Two things to check:
+      1. **Timeframe** — this cell is hard-coded to `now()-7d`; widen it or re-run after the crew has executed within the window.
+      2. **Any `kagent__` spans at all?** Sanity-check with: `fetch spans | filter service.namespace == "kagent" and startsWith(gen_ai.tool.name, "kagent__") | summarize count(), by:{gen_ai.tool.name}`. No rows here means no crew hand-offs have happened yet.
   - drilldownPath: []
     filterSegments: []
     id: a37df4a6-e1b2-40fb-ab78-5e8f04c3db04
