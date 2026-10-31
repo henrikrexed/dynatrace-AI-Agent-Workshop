@@ -11,7 +11,7 @@ emit maps to input/output/context:
   4. GenAI log-events on the span      (events column)
   5. the regression: OTel-only spans used to map to ZERO records
 
-Run: `cd evals && python -m pytest tests/ -q`  (or `uv run --group dev pytest`).
+Run: `cd evals && uv run --group dev pytest tests/ -q`.
 """
 from __future__ import annotations
 

@@ -53,8 +53,8 @@ signals and reach the right root cause?
 
 ```bash
 cd evals
-python phoenix/run_diagnosis_eval.py        # bundled golden+confab diagnoses (offline, no key)
-python phoenix/run_diagnosis_eval.py --llm-judge      # + LLM root-cause grader (needs a judge key)
+uv run python phoenix/run_diagnosis_eval.py        # bundled golden+confab diagnoses (offline, no key)
+uv run python phoenix/run_diagnosis_eval.py --llm-judge      # + LLM root-cause grader (needs a judge key)
 uv run python phoenix/run_diagnosis_eval.py --from-phoenix   # grade live diagnosis spans + annotate
 ```
 
