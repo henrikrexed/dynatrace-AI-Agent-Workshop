@@ -45,7 +45,10 @@ the rubrics after an answer key changes: `python gen_diagnosis_evaluators.py`.
   Phase-2 OTel gateway does this). **Generate some agent traffic first.**
 - A **dedicated** Dynatrace token (`dt0c01`) with scopes **`storage:spans:read`** +
   **`storage:events:write`**. This is *not* the Phase-2 OTLP ingest token.
-- A judge key (`OPENAI_API_KEY`) — a DeepSeek key works (OpenAI-compatible).
+- A judge key — a DeepSeek key works (OpenAI-compatible). On a provisioned
+  Codespace this is **auto-picked-up from the workshop `DEEPSEEK_API_KEY` secret**
+  (fallback `LLM_API_KEY`), so you normally don't set anything. Set
+  `OPENAI_API_KEY` in `evals/.env` only to override it (e.g. judge with real OpenAI).
 
 Put all of these in `evals/.env` (see `evals/.env.example`).
 

@@ -194,6 +194,13 @@ def summarise(results: pd.DataFrame) -> None:
 
 def main() -> None:
     load_dotenv(HERE.parent / ".env")
+    # The workshop provisions the judge key as DEEPSEEK_API_KEY (fallback
+    # LLM_API_KEY); there is no OPENAI_API_KEY secret. Map it on so a correctly
+    # set-up Codespace works with no hand-written .env.
+    if not os.environ.get("OPENAI_API_KEY"):
+        _judge = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("LLM_API_KEY")
+        if _judge:
+            os.environ["OPENAI_API_KEY"] = _judge
     ap = argparse.ArgumentParser(description="Phoenix LLM-judge eval walkthrough")
     ap.add_argument("--from-phoenix", action="store_true",
                     help="evaluate live spans from the Phoenix server instead of the bundled dataset")
