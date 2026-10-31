@@ -59,9 +59,20 @@ for i in $(seq 1 30); do
 done
 kubectl apply -f "${POLICY}"
 kubectl -n agent-sandbox get tracingpolicynamespaced detect-sensitive-file-access
-ok "policy detect-sensitive-file-access applied"
-# Give the agent a moment to load the kprobe selectors into the kernel.
+ok "policy detect-sensitive-file-access accepted by the apiserver"
+# Give the agent a moment to actually LOAD the kprobe selectors into the kernel.
 sleep 10
+# `kubectl apply` only means the apiserver stored the CR — the Tetragon agent can
+# still reject it at load time (e.g. an unsupported returnArgAction), which only
+# shows as a warn in the agent log and leaves the kprobe un-attached so NO event
+# ever fires. That silent failure was the real ISI-6953 cause, so assert here
+# that the agent did not reject the policy.
+if kubectl -n tetragon logs ds/tetragon -c tetragon --tail=500 2>/dev/null \
+     | grep -iE "adding tracing policy failed|failed loading policy 'detect-sensitive-file-access'"; then
+  fail "Tetragon REJECTED the policy at load time (see warn above) — kprobe never attached"
+  exit 1
+fi
+ok "Tetragon loaded the policy (no load error in agent log)"
 
 log "4/6  Launch the loop-snoop pod (reads /etc/passwd + SA token every 2s)"
 kubectl -n agent-sandbox run snoop --image=busybox:1.36 --restart=Never \
