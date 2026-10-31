@@ -91,9 +91,13 @@ timeout "${CAPTURE_SECS}" kubectl -n tetragon exec "${TETRA_POD}" -c tetragon --
 ok "captured $(wc -l < "${EVIDENCE}") event line(s)"
 
 log "6/6  Assert a security_file_permission kprobe fired for the snoop pod"
-# Match a process_kprobe line that names the snoop pod, the cat binary, and a
-# sensitive path. tetra compact output embeds these tokens on one line.
-MATCH="$(grep -iE 'kprobe' "${EVIDENCE}" | grep -i 'snoop' | grep -iE '/etc/passwd|serviceaccount|security_file_permission' | head -3 || true)"
+# tetra's COMPACT renderer prints a security_file_permission file-read kprobe as
+# a `read` action line, e.g.
+#     📚 read    agent-sandbox/snoop /bin/cat /etc/passwd
+# NOT the literal word "kprobe" — so match the `read` action naming the snoop
+# pod + a sensitive path. The `process`/`exit` exec lines use the `process`/
+# `exit` actions (and quote the command), so this will not false-match them.
+MATCH="$(grep -E 'read[[:space:]]+agent-sandbox/snoop' "${EVIDENCE}" | grep -E '/etc/passwd|serviceaccount' | head -3 || true)"
 if [ -n "${MATCH}" ]; then
   ok "DETECTION FIRED — raw evidence:"
   echo "----------------------------------------------------------------------"
