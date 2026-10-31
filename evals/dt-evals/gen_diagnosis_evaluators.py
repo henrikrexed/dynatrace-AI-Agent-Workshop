@@ -12,7 +12,7 @@ script turns each `evals/ground-truth/<id>.json` fixture into:
 Deterministic (no network) — the generated files are committed; re-run after the
 answer keys change (the module-05 tests fail if the fixtures drift from the .md).
 
-    python dt-evals/gen_diagnosis_evaluators.py        # regenerate evaluators/
+    uv run python dt-evals/gen_diagnosis_evaluators.py        # regenerate evaluators/
 """
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def rubric(fx: gt.Fixture) -> str:
 
 > Generated from `evals/ground-truth/{fx.scenario}.json`
 > (answer key: `{fx.ground_truth_md}`). Do not hand-edit — run
-> `python dt-evals/gen_diagnosis_evaluators.py` after the answer key changes.
+> `uv run python dt-evals/gen_diagnosis_evaluators.py` after the answer key changes.
 
 Register once (interactive — paste the prompt below when asked):
 

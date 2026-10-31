@@ -254,7 +254,7 @@ objectively, even with no judge model.
 
 ```bash
 cd evals
-python phoenix/run_diagnosis_eval.py        # bundled golden + confab diagnoses
+uv run python phoenix/run_diagnosis_eval.py        # bundled golden + confab diagnoses
 ```
 
 It prints a PASS/FAIL per diagnosis and writes

@@ -28,8 +28,8 @@ Sources:
     scenario each diagnosis belongs to, grade, and log labels back as annotations.
 
 Usage:
-    python phoenix/run_diagnosis_eval.py                 # bundled dataset (offline)
-    python phoenix/run_diagnosis_eval.py --llm-judge     # + LLM root-cause judge
+    uv run python phoenix/run_diagnosis_eval.py                 # bundled dataset (offline)
+    uv run python phoenix/run_diagnosis_eval.py --llm-judge     # + LLM root-cause judge
     uv run python phoenix/run_diagnosis_eval.py --from-phoenix
 """
 from __future__ import annotations
