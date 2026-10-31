@@ -150,3 +150,39 @@ def attribute_columns(df) -> list[str]:
     nothing maps, so the attendee can see what keys their spans really use."""
     cols = getattr(df, "columns", [])
     return sorted(c for c in cols if str(c).startswith("attributes."))
+
+
+# --- span fetch (ISI-6962) ---------------------------------------------------
+# kagent/ADK LLM spans carry ``openinference.span.kind == "LLM"`` — the gateway
+# OTTL sets it on the ``call_llm`` span (ISI-6960), and Phoenix surfaces it as
+# the span's ``span_kind`` field. Filtering on it server-side keeps the sparse
+# agent LLM spans from being crowded out of the ``limit`` window by the
+# otel-demo infra-span flood (http/db/rpc/net/...) that shares project
+# ``default``. Without it, a newest-N pull is almost all non-LLM spans and the
+# eval dead-ends with "none carried LLM input/output attributes".
+LLM_SPAN_FILTER = "span_kind == 'LLM'"
+
+
+def fetch_llm_spans(client, project: str, limit: int):
+    """Pull spans from Phoenix, filtered to LLM spans server-side.
+
+    Returns ``(dataframe, filtered)``. ``filtered`` is True when the server-side
+    ``span_kind == 'LLM'`` filter was applied and returned rows. If that query
+    errors (older client / unsupported DSL) or yields nothing (e.g. a capture
+    that predates the ``openinference.span.kind`` tagging), falls back to an
+    unfiltered newest-N pull so the caller still gets spans — and its own
+    diagnostic message — instead of a hard failure. The caller logs which path
+    was taken so a crowded, unfiltered result is never mistaken for a clean one.
+    """
+    try:
+        from phoenix.client.types.spans import SpanQuery
+
+        query = SpanQuery().where(LLM_SPAN_FILTER)
+        df = client.spans.get_spans_dataframe(
+            query=query, project_identifier=project, limit=limit)
+        if df is not None and not df.empty:
+            return df, True
+    except Exception:  # noqa: BLE001 - DSL/version differences must not be fatal
+        pass
+    df = client.spans.get_spans_dataframe(project_identifier=project, limit=limit)
+    return df, False
