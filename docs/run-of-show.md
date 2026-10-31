@@ -92,31 +92,35 @@ token, a mounted secret, `/etc/shadow`. Tetragon (installed in module 01) watche
 the kernel with eBPF, so it catches that read the instant it happens — something
 admission control can never see because the pod is already running and compliant.
 
-**Do it.** Apply the ready-made detection policy, then watch the filtered stream:
+**Do it.** Apply the ready-made detection policy, then start a compliant pod that
+*keeps* reading its own service-account token in a loop — exactly what a
+credential-stealing agent would do:
 
 ```bash
 kubectl apply -f cluster/tetragon/sensitive-file-access.yaml
 kubectl -n agent-sandbox get tracingpolicynamespaced   # detect-sensitive-file-access
 
-kubectl -n tetragon exec ds/tetragon -c tetragon -- \
-  tetra getevents -o compact --namespace agent-sandbox
+kubectl -n agent-sandbox run snoop --image=busybox:1.36 --restart=Never \
+  --overrides='{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","while true; do cat /var/run/secrets/kubernetes.io/serviceaccount/token >/dev/null 2>&1; sleep 2; done"]}]}}' \
+  --command -- sh -c "while true; do cat /var/run/secrets/kubernetes.io/serviceaccount/token >/dev/null 2>&1; sleep 2; done"
+kubectl -n agent-sandbox wait --for=condition=Ready pod/snoop --timeout=60s
 ```
 
-**Apply this.** In a second terminal, schedule a compliant pod that reads its own
-service-account token — exactly what a credential-stealing agent would do:
+**Watch this.** In a second terminal, watch the filtered stream — within a couple
+of seconds the looping read is caught:
 
 ```bash
-kubectl -n agent-sandbox run snoop --image=busybox:1.36 --restart=Never \
-  --overrides='{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"]}]}}' \
-  --command -- sh -c "cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"
-
-kubectl -n agent-sandbox delete pod snoop --ignore-not-found   # clean up; leave the policy running
+kubectl -n tetragon exec ds/tetragon -c tetragon -- \
+  tetra getevents -o compact --namespace agent-sandbox
+# Ctrl-C once you see it, then clean up:
+kubectl -n agent-sandbox delete pod snoop --ignore-not-found   # leave the policy running
 ```
 
-The first terminal prints a `process_kprobe` line for `security_file_permission`
-on the `snoop` pod, naming `cat` and the token path — your detection firing. The
-pod ran clean under Pod Security *and* was caught reading a credential, because
-runtime detection sees what admission cannot.
+The stream prints a `process_kprobe` line for `security_file_permission` on the
+`snoop` pod, naming `cat` and the token path — your detection firing. The pod ran
+clean under Pod Security *and* was caught reading a credential, because runtime
+detection sees what admission cannot. (A loop, not a single `cat`: `getevents` is
+a live stream with no history replay, so a one-shot read at startup is missed.)
 
 **Go deeper.** [03 — Secure agents](03-secure.md#detect-an-agent-reading-sensitive-files).
 

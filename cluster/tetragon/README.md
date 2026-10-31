@@ -32,12 +32,29 @@ For the sensitive-file detection step:
 
 ```bash
 kubectl apply -f cluster/tetragon/sensitive-file-access.yaml
+
+# Start a pod that *keeps* reading its SA token (loop — see note below).
+kubectl -n agent-sandbox run snoop --image=busybox:1.36 --restart=Never \
+  --command -- sh -c "while true; do cat /var/run/secrets/kubernetes.io/serviceaccount/token >/dev/null 2>&1; sleep 2; done"
+kubectl -n agent-sandbox wait --for=condition=Ready pod/snoop --timeout=60s
+
+# Watch — the read is caught within a couple of seconds.
 kubectl -n tetragon exec ds/tetragon -c tetragon -- \
   tetra getevents -o compact --namespace agent-sandbox
+
+kubectl -n agent-sandbox delete pod snoop --ignore-not-found   # clean up
 ```
 
-Then trigger it by reading a credential from a sandbox pod (see module 03 →
-*Detect an agent reading sensitive files*).
+> **Read in a loop, not once.** `tetra getevents` is a live stream with no
+> history replay — it only shows events that happen *after* it attaches. A
+> one-shot `cat token; sleep` reads once at startup, before you start watching,
+> so the stream looks empty and detection appears broken. The loop guarantees a
+> read lands inside the watch window.
+
+See module 03 → *Detect an agent reading sensitive files* for the full step. A
+reproducible end-to-end check (apply policy → loop-read → assert the event
+fires) lives in [`validate-detection.sh`](validate-detection.sh), run on a live
+cluster or by the `tetragon-detection` CI workflow.
 
 ## Verify
 

@@ -147,28 +147,41 @@ only see *agent* activity — not every system process on the node reading
     happens — and the step works reliably for everyone. Flip the `matchActions`
     to `Sigkill` once you have confirmed your host supports it (next section).
 
-Now **trigger it**. Watch the filtered stream in one terminal:
+Now **trigger it**. First, schedule a compliant pod into the sandbox that
+*keeps* reading its own service-account token every couple of seconds — exactly
+what a credential-stealing agent would do, in a loop so a read always lands
+inside the live event stream:
+
+```bash
+kubectl -n agent-sandbox run snoop --image=busybox:1.36 --restart=Never \
+  --overrides='{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","while true; do cat /var/run/secrets/kubernetes.io/serviceaccount/token >/dev/null 2>&1; sleep 2; done"]}]}}' \
+  --command -- sh -c "while true; do cat /var/run/secrets/kubernetes.io/serviceaccount/token >/dev/null 2>&1; sleep 2; done"
+
+kubectl -n agent-sandbox wait --for=condition=Ready pod/snoop --timeout=60s
+```
+
+Then watch the filtered stream — within a couple of seconds you will see the
+read caught:
 
 ```bash
 kubectl -n tetragon exec ds/tetragon -c tetragon -- \
   tetra getevents -o compact --namespace agent-sandbox
 ```
 
-…and in a second terminal, schedule a compliant pod into the sandbox and have it
-read its own service-account token (exactly what a credential-stealing agent
-would do):
-
-```bash
-kubectl -n agent-sandbox run snoop --image=busybox:1.36 --restart=Never \
-  --overrides='{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"]}]}}' \
-  --command -- sh -c "cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"
-```
+!!! warning "Why a loop, not a single `cat`?"
+    `tetra getevents` is a **live stream** — it only shows events that happen
+    *after* it attaches, and never replays history. A one-shot `cat token; sleep`
+    reads once at pod startup, which is almost always *before* you start watching,
+    so the stream stays empty and the detection looks broken. Reading in a loop
+    guarantees a read lands inside the watch window. (You can also keep the one-shot
+    read and start `getevents` **first** — but the loop is foolproof for a live demo.)
 
 !!! success "Expected"
-    The first terminal prints a `process_kprobe` line for `security_file_permission`
-    on the `snoop` pod, naming the binary (`cat`) and the sensitive path. That is
-    your detection firing — the pod ran clean under Pod Security *and* was caught
-    reading a credential, because runtime detection sees what admission cannot.
+    The stream prints a `process_kprobe` line for `security_file_permission`
+    on the `snoop` pod, naming the binary (`cat`) and the sensitive path
+    (`…/serviceaccount/…/token`). That is your detection firing — the pod ran
+    clean under Pod Security *and* was caught reading a credential, because
+    runtime detection sees what admission cannot. Press `Ctrl-C` to stop watching.
 
 Clean up:
 

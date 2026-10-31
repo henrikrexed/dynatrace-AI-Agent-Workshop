@@ -1,0 +1,107 @@
+# ISI-6957 — Agent-runnable live validation that the sensitive-file detection
+# TracingPolicy actually fires, on a GitHub-hosted runner with a real kind
+# cluster + Tetragon (eBPF). This is the live evidence the workshop's module 03
+# "Detect an agent reading sensitive files" step depends on (ISI-6953 reported
+# it firing no events — root cause was a one-shot read racing the live stream).
+#
+# WHAT IT EXERCISES
+#   - cluster/tetragon/sensitive-file-access.yaml — the TracingPolicy selector.
+#   - cluster/tetragon/validate-detection.sh — loop-reads the SA token and
+#     asserts a real `security_file_permission` / `process_kprobe` event fires.
+#   Tetragon is installed from the SAME chart version (cluster/versions.env) and
+#   values (cluster/tetragon/values.yaml) the workshop uses.
+#
+# HONESTY NOTE
+#   eBPF needs the host kernel to expose BTF (/sys/kernel/btf/vmlinux) and allow
+#   kprobe attach. ubuntu-latest runners ship a BTF-enabled kernel and kind nodes
+#   share it, so this is representative of a working Codespace host. If a future
+#   runner image lacks BTF the Tetragon DaemonSet will not become Ready and the
+#   job fails loudly (never a silent green) — the raw logs are uploaded.
+#
+# HOW TO RUN
+#   - workflow_dispatch from the Actions tab (needs the file on the default
+#     branch), OR
+#   - push a `ci/tetragon-detection/**` branch, OR
+#   - open/update a PR that touches cluster/tetragon/**.
+
+name: tetragon-detection (ISI-6957)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'ci/tetragon-detection/**'
+  pull_request:
+    paths:
+      - 'cluster/tetragon/**'
+      - '.github/workflows/tetragon-detection.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tetragon-detection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      KIND_VERSION: v0.25.0
+      KUBECTL_VERSION: v1.31.4
+      HELM_VERSION: v3.16.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Runner facts (confirm BTF present)
+        run: |
+          uname -a
+          echo "BTF:"; ls -l /sys/kernel/btf/vmlinux || echo "::warning::no BTF on host — Tetragon may not attach"
+
+      - name: Install kind / kubectl / helm
+        run: |
+          set -euxo pipefail
+          curl -fsSLo /usr/local/bin/kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          chmod +x /usr/local/bin/kind
+          curl -fsSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          chmod +x /usr/local/bin/kubectl
+          curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" | tar -xz
+          sudo mv linux-amd64/helm /usr/local/bin/helm
+          kind version && kubectl version --client && helm version
+
+      - name: Create kind cluster
+        run: kind create cluster --name tetragon-ci --wait 120s
+
+      - name: Install Tetragon (same chart version + values as the workshop)
+        run: |
+          set -euxo pipefail
+          TETRAGON_CHART_VERSION="$(grep -E '^TETRAGON_CHART_VERSION=' cluster/versions.env | cut -d'"' -f2)"
+          echo "chart version: ${TETRAGON_CHART_VERSION}"
+          helm repo add cilium https://helm.cilium.io
+          helm repo update
+          kubectl create namespace tetragon
+          helm upgrade --install tetragon cilium/tetragon \
+            --version "${TETRAGON_CHART_VERSION}" \
+            --namespace tetragon \
+            -f cluster/tetragon/values.yaml --wait --timeout 5m
+          kubectl -n tetragon rollout status ds/tetragon --timeout=180s
+          kubectl -n tetragon get pods -o wide
+
+      - name: Validate sensitive-file detection fires (live event evidence)
+        run: |
+          set -o pipefail
+          WATCH_SECONDS=40 bash cluster/tetragon/validate-detection.sh 2>&1 | tee tetragon-detection.log
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          echo "== tetragon pods =="; kubectl -n tetragon get pods -o wide || true
+          echo "== tetragon logs =="; kubectl -n tetragon logs ds/tetragon -c tetragon --tail=120 || true
+          echo "== tracingpolicies =="; kubectl get tracingpolicynamespaced -A || true
+
+      - name: Upload raw log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tetragon-detection-log
+          path: tetragon-detection.log
+          if-no-files-found: warn
+          retention-days: 30

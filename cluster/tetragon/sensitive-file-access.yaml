@@ -25,6 +25,10 @@
 # matching raw openat() path strings, which can be relative or symlinked.
 #
 # APPLY:   kubectl apply -f cluster/tetragon/sensitive-file-access.yaml
+# TRIGGER: read a sensitive path from a sandbox pod IN A LOOP — `tetra getevents`
+#          is a live stream with no history replay, so a one-shot read at pod
+#          startup is missed and the detection looks broken. e.g.:
+#            sh -c "while true; do cat /var/run/secrets/kubernetes.io/serviceaccount/token >/dev/null 2>&1; sleep 2; done"
 # WATCH:   kubectl -n tetragon exec ds/tetragon -c tetragon -- \
 #            tetra getevents -o compact --namespace agent-sandbox
 # REMOVE:  kubectl delete -f cluster/tetragon/sensitive-file-access.yaml
