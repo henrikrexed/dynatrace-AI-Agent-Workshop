@@ -45,6 +45,7 @@ HERE = Path(__file__).resolve().parent          # evals/phoenix
 EVALS = HERE.parent                              # evals/
 sys.path.insert(0, str(EVALS))
 import ground_truth as gt  # noqa: E402
+import span_mapping  # noqa: E402  (sibling in phoenix/)
 
 DATA = HERE / "data" / "sample_diagnoses.jsonl"
 OUT = HERE / "out"
@@ -86,19 +87,10 @@ def load_from_phoenix(fixtures) -> list[dict]:
         sys.exit(f"No spans in Phoenix project '{project}' at {endpoint}. "
                  "Run a scenario diagnosis first (scenarios/run.sh inject <id>).")
 
-    import pandas as pd
-
-    def pick(row, *keys):
-        for k in keys:
-            if k in row and pd.notna(row[k]) and str(row[k]).strip():
-                return str(row[k])
-        return ""
-
     rows = []
     for span_id, row in spans.iterrows():
-        out = pick(row, "attributes.output.value", "attributes.gen_ai.completion",
-                   "attributes.llm.output_messages")
-        inp = pick(row, "attributes.input.value", "attributes.gen_ai.prompt")
+        out = span_mapping.extract_output(row)
+        inp = span_mapping.extract_input(row)
         if not out:
             continue
         scenario = infer_scenario(f"{inp}\n{out}", fixtures)
@@ -108,8 +100,15 @@ def load_from_phoenix(fixtures) -> list[dict]:
                      "input": inp, "context": "", "output": out,
                      "span_id": str(span_id)})
     if not rows:
-        sys.exit("Found spans but none mapped to a known scenario "
-                 f"({', '.join(SCENARIO_NEEDLES)}). Diagnose a scenario first.")
+        present = span_mapping.attribute_columns(spans)
+        sys.exit(
+            "Found spans but none mapped to a known scenario "
+            f"({', '.join(SCENARIO_NEEDLES)}). Either no diagnosis span carried "
+            "LLM output attributes, or none matched a scenario — diagnose a "
+            "scenario first (scenarios/run.sh inject <id>).\n"
+            "Attribute columns present on these spans:\n  "
+            + ("\n  ".join(present) if present else "(none — non-LLM spans)")
+        )
     print(f"Mapped {len(rows)} diagnosis spans to scenarios from Phoenix.")
     return rows
 

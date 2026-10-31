@@ -69,6 +69,23 @@ labels — you can see the judge catch the hallucinated and irrelevant ones. Thi
 gives an inspectable result even before you've generated live traffic (you still
 need a judge key), which satisfies the Phase-4 acceptance on its own.
 
+## `--from-phoenix` span mapping
+
+Our agents export **OTel GenAI semconv** spans through the collector-gateway, so
+the prompt/response content lands under `gen_ai.*` keys — not the OpenInference
+`input.value` / `output.value` keys. `span_mapping.py` maps both conventions to
+the judge's `input` / `output` / `context` columns:
+
+- OTel GenAI indexed — `gen_ai.prompt.N.content` / `gen_ai.completion.N.content`
+- OTel GenAI structured — `gen_ai.input.messages` / `gen_ai.output.messages`
+- OpenInference — `input.value` / `output.value`
+- GenAI log-events on the span
+
+If a run reports *"Found spans but none carried recognisable LLM input/output
+attributes"*, it now prints the `attributes.*` columns your spans actually have —
+add any missing key to `INPUT_KEYS` / `OUTPUT_KEYS` in `span_mapping.py`. The
+offline test `tests/test_span_mapping.py` covers every supported form.
+
 ## Versions
 
 Pinned in `evals/pyproject.toml` (`arize-phoenix-evals`, `arize-phoenix-client`).
