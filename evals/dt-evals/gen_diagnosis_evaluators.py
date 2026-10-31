@@ -25,7 +25,6 @@ sys.path.insert(0, str(EVALS))
 import ground_truth as gt  # noqa: E402
 
 OUT_DIR = HERE / "evaluators"
-PKG = "@dynatrace-oss/dt-evals@0.3.4-alpha"           # matches cluster/versions.env
 
 
 def rubric(fx: gt.Fixture) -> str:
@@ -38,10 +37,11 @@ def rubric(fx: gt.Fixture) -> str:
 > (answer key: `{fx.ground_truth_md}`). Do not hand-edit — run
 > `uv run python dt-evals/gen_diagnosis_evaluators.py` after the answer key changes.
 
-Register once (interactive — paste the prompt below when asked):
+Register once (interactive — paste the **Judge prompt** section below when asked):
 
 ```bash
-npx -y {PKG} evaluators add
+cd evals/dt-evals
+./run-dt-eval.sh evaluators add          # passthrough to the pinned dt-evals CLI
 #   name:           {name}
 #   scale:          binary   (1 = correct, 0 = incorrect)
 #   required field: output   (dt-evals maps the gen_ai response span attribute)
@@ -50,8 +50,8 @@ npx -y {PKG} evaluators add
 Then enable it in a run scoped to spans from this scenario's diagnosis:
 
 ```bash
-DT_EVAL_SERVICE=<sre-agent service.name> \\
-  ./run-dt-eval.sh --config scenario-diagnosis.dt-eval.yaml --metric {name}
+export DT_EVAL_SERVICE="sre-agent"   # your SRE agent's service.name (discover it)
+./run-dt-eval.sh --config scenario-diagnosis.dt-eval.yaml --metric {name}
 ```
 
 ## Judge prompt

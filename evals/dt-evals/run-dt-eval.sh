@@ -19,6 +19,21 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 
+# Pinned CLI version (single source of truth in cluster/versions.env). Resolved
+# up here so the `evaluators` passthrough below can reach it too.
+# shellcheck disable=SC1091
+DT_EVALS_PKG="${DT_EVALS_PKG:-$(grep -E '^DT_EVALS_PKG=' "$REPO_ROOT/cluster/versions.env" | cut -d'"' -f2)}"
+DT_EVALS_PKG="${DT_EVALS_PKG:-@dynatrace-oss/dt-evals@alpha}"
+
+# `evaluators` is a LOCAL management command — it writes custom evaluator
+# definitions to ~/.config/dt-eval/custom-prompts.json and needs no Dynatrace
+# token and no rendered config. Pass it straight through to the pinned CLI so
+# attendees have ONE entry point and nothing to export (no bare $DT_EVALS_PKG in
+# a copy-pasted line).  e.g.  ./run-dt-eval.sh evaluators add
+if [ "${1:-}" = "evaluators" ]; then
+  exec npx -y "$DT_EVALS_PKG" "$@"
+fi
+
 # Optional `--config <file>` picks a different eval template (e.g. the module-05
 # diagnosis config). Default is the general workshop-agents config. The flag is
 # parsed out here; everything else still passes straight through to `dt-evals run`.
@@ -35,11 +50,6 @@ set -- "${PASSTHRU[@]+"${PASSTHRU[@]}"}"
 case "$CONFIG" in /*) TEMPLATE="$CONFIG" ;; *) TEMPLATE="$HERE/$CONFIG" ;; esac
 [ -f "$TEMPLATE" ] || { echo "ERROR: config not found: $TEMPLATE" >&2; exit 1; }
 RENDERED="${TEMPLATE%.yaml}.generated.yaml"
-
-# Pinned CLI version (single source of truth in cluster/versions.env).
-# shellcheck disable=SC1091
-DT_EVALS_PKG="${DT_EVALS_PKG:-$(grep -E '^DT_EVALS_PKG=' "$REPO_ROOT/cluster/versions.env" | cut -d'"' -f2)}"
-DT_EVALS_PKG="${DT_EVALS_PKG:-@dynatrace-oss/dt-evals@alpha}"
 
 # Load evals/.env if present (keeps secrets out of the shell history).
 [ -f "$REPO_ROOT/evals/.env" ] && { set -a; . "$REPO_ROOT/evals/.env"; set +a; }
