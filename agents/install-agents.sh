@@ -33,6 +33,25 @@ if ! kubectl -n kagent get remotemcpserver kagent-tool-server >/dev/null 2>&1; t
   warn "Enable it: set kagent-tools.enabled=true in cluster/kagent/values.yaml and re-run cluster/install.sh."
 fi
 
+# --- cleanup: purge pre-removal Dynatrace MCP orphans -----------------------
+# The Dynatrace MCP server was removed from the workshop (ISI-6935). This script
+# is apply-only — it never deletes objects dropped from the manifest set — so a
+# re-run on a cluster provisioned by a PRE-removal release leaves the old CRs
+# behind: the `dynatrace-mcp` MCPServer (+ its backing Deployment/Service) and
+# the `dynatrace-mcp-remote` RemoteMCPServer. Anything still referencing them
+# (or the controller trying to extract their tools) then fails with
+# `Post "http://dynatrace-mcp.kagent:3000/mcp": context deadline exceeded`.
+# Purge them idempotently on every run so a redeploy from current main is clean.
+log "cleanup  purging any pre-removal Dynatrace MCP orphans"
+kubectl -n kagent delete remotemcpserver dynatrace-mcp-remote --ignore-not-found
+kubectl -n kagent delete mcpserver       dynatrace-mcp        --ignore-not-found
+# Backing workload the old MCPServer's deployment spec created — kagent usually
+# garbage-collects these via owner refs when the MCPServer goes, but delete them
+# explicitly in case the owner chain was already broken on an orphaned install.
+kubectl -n kagent delete deployment      dynatrace-mcp        --ignore-not-found
+kubectl -n kagent delete service         dynatrace-mcp        --ignore-not-found
+ok "Dynatrace MCP orphans cleared (if any were present)"
+
 # --- credentials ------------------------------------------------------------
 export GITHUB_MCP_IMAGE
 # Accept GITHUB_TOKEN (Codespaces injects one) as a fallback for GH_PAT. A
