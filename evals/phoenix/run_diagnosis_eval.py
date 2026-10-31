@@ -152,6 +152,14 @@ def main() -> None:
     except ModuleNotFoundError:
         pass  # deterministic path needs no .env
 
+    # The workshop provisions the judge key as DEEPSEEK_API_KEY (fallback
+    # LLM_API_KEY); there is no OPENAI_API_KEY secret. Map it on so --llm-judge
+    # works on a correctly set-up Codespace with no hand-written .env.
+    if not os.environ.get("OPENAI_API_KEY"):
+        _judge = os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("LLM_API_KEY")
+        if _judge:
+            os.environ["OPENAI_API_KEY"] = _judge
+
     ap = argparse.ArgumentParser(description="Grade SRE diagnoses vs scenario answer keys")
     ap.add_argument("--from-phoenix", action="store_true",
                     help="grade live diagnosis spans from a running Phoenix server")
