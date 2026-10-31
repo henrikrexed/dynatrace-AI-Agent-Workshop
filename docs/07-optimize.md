@@ -177,6 +177,25 @@ fetch spans
 | sort handoffs desc
 ```
 
+!!! note "Returns nothing? That's expected unless the BMAD crew has run"
+    A2A hand-offs (`kagent__NS__<agent>` tool calls) are only emitted when the
+    **`bmad-orchestrator`** delegates to its specialists. The solo `sre-agent` —
+    the default k8s-only investigation path — calls only `kagent-tool-server`
+    tools and produces **zero** `kagent__` spans by design, so this graph is empty
+    until the crew has run. To populate it:
+
+    1. Run the **BMAD crew** (the A2A sample prompt from
+       [module 02 §5](02-agents-mcp.md#5-send-a-sample-prompt)) and re-run the query.
+    2. Check the **timeframe** — the notebook cell is hard-coded to `now()-7d`;
+       widen it or re-run after the crew has executed within the window.
+    3. Confirm *any* `kagent__` spans exist at all:
+       ```
+       fetch spans
+       | filter service.namespace == "kagent" and startsWith(gen_ai.tool.name, "kagent__")
+       | summarize count(), by:{gen_ai.tool.name}
+       ```
+       No rows means no crew hand-offs have happened yet.
+
 *Notebook: section 4.*
 
 ### 5 · The reasoning loop
