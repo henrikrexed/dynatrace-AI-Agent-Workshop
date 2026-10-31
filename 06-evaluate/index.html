@@ -592,22 +592,44 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#part-a-phoenix-explore-and-judge-live-traces" class="md-nav__link">
+  <a href="#part-a-phoenix-create-an-evaluation-in-the-ui" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Part A — Phoenix: explore and judge live traces
+        Part A — Phoenix: create an evaluation in the UI
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Part A — Phoenix: explore and judge live traces">
+    <nav class="md-nav" aria-label="Part A — Phoenix: create an evaluation in the UI">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#run-an-evaluation-llm-as-a-judge" class="md-nav__link">
+  <a href="#create-and-run-an-llm-as-a-judge-no-code" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Run an evaluation (LLM-as-a-judge)
+        Create and run an LLM-as-a-judge (no code)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#read-the-scores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read the scores
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#script-the-same-judge-instead-optional-advanced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Script the same judge instead (optional / advanced)
       
     </span>
   </a>
@@ -822,7 +844,8 @@ produces (module 02/04) — you don't re-run the agents to grade them, you grade
 the traces they already emitted:</p>
 <ul>
 <li><strong>Phoenix (Arize)</strong> — interactive trace + eval UI, already running from
-  module 01. Great for <em>exploratory</em> LLM-as-a-judge over live traces.</li>
+  module 01. You <strong>build and run an LLM-as-a-judge evaluation in the UI</strong> (no
+  code) using the preconfigured DeepSeek judge — great for <em>exploratory</em> scoring.</li>
 <li><strong>dt-evals</strong> — <a href="https://github.com/dynatrace-oss/dt-evals"><code>dynatrace-oss/dt-evals</code></a>,
   the <strong>primary</strong> path: a config-driven CLI that pulls <code>gen_ai.*</code> spans from
   Dynatrace, scores them with a judge, and writes the results back as bizevents
@@ -839,17 +862,66 @@ the same model that powers the agents — set once in <code>evals/.env</code>
 <strong>before</strong> running either path, so there are spans to grade.</p>
 </div>
 <hr />
-<h2 id="part-a-phoenix-explore-and-judge-live-traces">Part A — Phoenix: explore and judge live traces<a class="headerlink" href="#part-a-phoenix-explore-and-judge-live-traces" title="Permanent link">&para;</a></h2>
-<p>Open Phoenix on the forwarded Codespace port <strong>6006</strong>:</p>
+<h2 id="part-a-phoenix-create-an-evaluation-in-the-ui">Part A — Phoenix: create an evaluation in the UI<a class="headerlink" href="#part-a-phoenix-create-an-evaluation-in-the-ui" title="Permanent link">&para;</a></h2>
+<p>Phoenix is the fast, visual judge: you create <strong>and</strong> run an LLM-as-a-judge
+evaluation entirely in the web UI — no code — scored by the same <strong>DeepSeek</strong>
+model that powers the agents. Open Phoenix on the forwarded Codespace port
+<strong>6006</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>phoenix<span class="w"> </span>port-forward<span class="w"> </span>svc/phoenix<span class="w"> </span><span class="m">6006</span>:6006
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="c1"># then open http://localhost:6006</span>
 </code></pre></div>
 <p>Every agent run shows up as an LLM trace: prompt, response, tool spans, token
-counts. Click a span to see its <code>gen_ai.*</code> attributes.</p>
-<h3 id="run-an-evaluation-llm-as-a-judge">Run an evaluation (LLM-as-a-judge)<a class="headerlink" href="#run-an-evaluation-llm-as-a-judge" title="Permanent link">&para;</a></h3>
-<p>The repo ships a small, version-pinned eval script that builds two judge
-classifiers — <strong>hallucination</strong> (is the answer grounded in its context?) and
-<strong>relevance</strong> (does it answer the question?):</p>
+counts. Click a span to see its <code>gen_ai.*</code> attributes. Module 04's gateway now
+also surfaces each LLM call's prompt and completion as OpenInference
+<code>input.value</code> / <code>output.value</code>, so the <strong>Input</strong> and <strong>Output</strong> are visible right
+in the trace view — which is exactly what the judge reads.</p>
+<div class="admonition tip">
+<p class="admonition-title">The DeepSeek judge is already wired</p>
+<p>The workshop's Phoenix is preconfigured for DeepSeek (<code>DEEPSEEK_API_KEY</code> is
+injected from your Codespace key, and <code>PHOENIX_ALLOWED_PROVIDERS=DEEPSEEK</code>
+restricts the model menu), so <strong>DeepSeek is the only — and obvious — choice</strong>
+everywhere you pick a judge model. You never hand-enter a key. If your Phoenix
+is <em>not</em> preconfigured, add the key once under <strong>Settings → AI Providers →
+DeepSeek</strong> and it behaves the same from there on.</p>
+</div>
+<h3 id="create-and-run-an-llm-as-a-judge-no-code">Create and run an LLM-as-a-judge (no code)<a class="headerlink" href="#create-and-run-an-llm-as-a-judge-no-code" title="Permanent link">&para;</a></h3>
+<p>You'll score the SRE-agent traces from your last run against a judge classifier —
+start with <strong>hallucination</strong> (is the answer grounded in the tool output it was
+given?) or <strong>relevance</strong> (does it actually answer the question?).</p>
+<ol>
+<li><strong>Pick the traces.</strong> Open your project's <strong>Traces</strong> table and select the
+   SRE-agent runs you want to grade (filter to the <code>agent.run</code> / LLM spans so each
+   example carries a clean question → answer pair).</li>
+<li><strong>Capture them as a dataset.</strong> Use <strong>Add to Dataset</strong> to save the selected
+   spans as a dataset — each example keeps the span's <strong>Input</strong> (the question) and
+   <strong>Output</strong> (the agent's answer). This is the set the judge will score.</li>
+<li><strong>Add an LLM evaluator.</strong> Open the new dataset → <strong>Evaluators</strong> tab →
+   <strong>Add evaluator</strong> → <strong>LLM</strong>. Phoenix opens it in the <strong>Playground</strong>:<ul>
+<li><strong>Model:</strong> DeepSeek (the only provider in the menu — already keyed).</li>
+<li><strong>Template:</strong> write the judge prompt, e.g. <em>“You are grading whether the
+   ANSWER is grounded in the provided CONTEXT/question. Reply with a single
+   label: <code>hallucinated</code> or <code>factual</code>.”</em> (or a relevance rubric:
+   <code>relevant</code> / <code>irrelevant</code>).</li>
+<li><strong>Input mapping:</strong> map the template's <code>{question}</code> / <code>{answer}</code> variables
+   to the dataset's <strong>input</strong> / <strong>output</strong> fields.</li>
+<li><strong>Test</strong> it on one example to see the label + explanation, then <strong>Save</strong>.</li>
+</ul>
+</li>
+<li><strong>Run it.</strong> From the dataset, <strong>Run</strong> an experiment in the Playground. Phoenix
+   calls the DeepSeek judge <strong>server-side</strong> over every example — no local runtime.</li>
+</ol>
+<h3 id="read-the-scores">Read the scores<a class="headerlink" href="#read-the-scores" title="Permanent link">&para;</a></h3>
+<p>The experiment's results table gains one <strong>label / score column per evaluator</strong>.
+Sort by it to surface the weakest answers, and click any row to read the judge's
+<strong>label, score, and explanation</strong> next to that example's input and output. That is
+your end-to-end eval — created, run, and read entirely in the Phoenix UI.</p>
+<p>This is <em>exploratory</em>: fast, visual, good for discovering failure modes by hand.
+For a repeatable gate you can run in CI, use dt-evals (Part B).</p>
+<h3 id="script-the-same-judge-instead-optional-advanced">Script the same judge instead (optional / advanced)<a class="headerlink" href="#script-the-same-judge-instead-optional-advanced" title="Permanent link">&para;</a></h3>
+<p>The UI flow above is the fast path. The repo also ships a small, version-pinned
+script that builds the same two classifiers (<strong>hallucination</strong> + <strong>relevance</strong>)
+from code — handy for CI, for grading the <strong>live</strong> spans in place, or when you
+have no traffic yet:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># Bundled sample dataset — no cluster/traffic needed (just a judge key):</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py
@@ -864,14 +936,13 @@ on the traces in the UI. Details: <a href="https://github.com/henrikrexed/dynatr
 <p>The live path maps prompt/response content out of your spans in every common
 shape our agents emit — OTel GenAI semconv (<code>gen_ai.input.messages</code>, indexed
 <code>gen_ai.prompt.N.content</code> / <code>gen_ai.completion.N.content</code>, or <code>gen_ai.*</code>
-log-events) as well as OpenInference (<code>input.value</code> / <code>output.value</code>). If it
-still finds no content, it now prints exactly which <code>attributes.*</code> were
-present so you can see what to add. The usual cause is instrumentation that
-<strong>drops message bodies by default</strong> — enable content capture and re-drive the
-agents (see the README). The bundled dataset path above always works offline.</p>
+log-events) as well as OpenInference (<code>input.value</code> / <code>output.value</code> — the
+pair the gateway now also populates). If it still finds no content, it prints
+exactly which <code>attributes.*</code> were present so you can see what to add. The
+usual cause is instrumentation that <strong>drops message bodies by default</strong> —
+enable content capture and re-drive the agents (see the README). The bundled
+dataset path always works offline.</p>
 </div>
-<p>This is <em>exploratory</em>: fast, visual, good for discovering failure modes. For a
-gate you can run in CI, use dt-evals.</p>
 <hr />
 <h2 id="part-b-dt-evals-trace-sourced-evals-in-dynatrace">Part B — dt-evals: trace-sourced evals in Dynatrace<a class="headerlink" href="#part-b-dt-evals-trace-sourced-evals-in-dynatrace" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/dynatrace-oss/dt-evals"><code>dt-evals</code></a> is the <strong>primary eval
