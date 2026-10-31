@@ -70,15 +70,15 @@ fi
 if [ -z "${DT_EVAL_SERVICE:-}" ]; then
   cat >&2 <<EOF
 ERROR: DT_EVAL_SERVICE is not set — this is the service.name of the agent to
-evaluate, and it must be discovered, not guessed. Run this DQL in Dynatrace
-(Notebooks / the run-dt-query capability) to list candidates:
+evaluate. Workshop defaults: sre-agent or bmad-orchestrator. Confirm with DQL
+(Dynatrace Notebook / run-dt-query capability):
 
   fetch spans, from: now() - 2h
   | filter isNotNull(gen_ai.operation.name) or isNotNull(gen_ai.request.model)
   | summarize span_count = count(), by: { service.name }
   | sort span_count desc
 
-Then: export DT_EVAL_SERVICE="<the service.name>"  (or add it to evals/.env)
+Then: export DT_EVAL_SERVICE="<the service.name>"  (or set it in evals/.env)
 EOF
   exit 1
 fi
