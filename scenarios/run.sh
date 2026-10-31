@@ -64,10 +64,14 @@ cmd_inject() {
     case "$reqs" in
       *otel-demo*)
         if ! kubectl get ns otel-demo >/dev/null 2>&1; then
-          err "scenario '${name}' requires the otel-demo app, which is not deployed."
-          err "Deploy just the demo (platform stack already installed), then retry:"
-          err "  helm upgrade --install otel-demo oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 -n otel-demo --create-namespace -f cluster/otel-demo/values-light.yaml --wait"
-          err "  (or the all-in-one: INSTALL_OTEL_DEMO=true bash cluster/install.sh)"
+          # Not a crash — scenario #12 is the opt-in top tier and simply needs the
+          # otel-demo app deployed first. One warn for the condition, then cyan
+          # [ info ] remediation so the copy-paste commands don't read as a failure
+          # cascade. (ISI-6956)
+          warn "scenario '${name}' is opt-in (the highest tier) — it needs the otel-demo app, which isn't deployed yet. This is expected, not a bug."
+          info "Deploy just the demo (the platform stack is already installed), then re-run this command:"
+          info "  helm upgrade --install otel-demo oci://ghcr.io/henrikrexed/charts/opentelemetry-demo-light --version 0.2.8 -n otel-demo --create-namespace -f cluster/otel-demo/values-light.yaml --wait"
+          info "  (or the all-in-one: INSTALL_OTEL_DEMO=true bash cluster/install.sh)"
           exit 2
         fi
         ;;
