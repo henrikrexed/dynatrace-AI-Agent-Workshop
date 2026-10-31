@@ -10,7 +10,8 @@ produces (module 02/04) — you don't re-run the agents to grade them, you grade
 the traces they already emitted:
 
 - **Phoenix (Arize)** — interactive trace + eval UI, already running from
-  module 01. Great for *exploratory* LLM-as-a-judge over live traces.
+  module 01. You **build and run an LLM-as-a-judge evaluation in the UI** (no
+  code) using the preconfigured DeepSeek judge — great for *exploratory* scoring.
 - **dt-evals** — [`dynatrace-oss/dt-evals`](https://github.com/dynatrace-oss/dt-evals),
   the **primary** path: a config-driven CLI that pulls `gen_ai.*` spans from
   Dynatrace, scores them with a judge, and writes the results back as bizevents
@@ -28,9 +29,12 @@ the same model that powers the agents — set once in `evals/.env`
 
 ---
 
-## Part A — Phoenix: explore and judge live traces
+## Part A — Phoenix: create an evaluation in the UI
 
-Open Phoenix on the forwarded Codespace port **6006**:
+Phoenix is the fast, visual judge: you create **and** run an LLM-as-a-judge
+evaluation entirely in the web UI — no code — scored by the same **DeepSeek**
+model that powers the agents. Open Phoenix on the forwarded Codespace port
+**6006**:
 
 ```bash
 kubectl -n phoenix port-forward svc/phoenix 6006:6006
@@ -38,13 +42,60 @@ kubectl -n phoenix port-forward svc/phoenix 6006:6006
 ```
 
 Every agent run shows up as an LLM trace: prompt, response, tool spans, token
-counts. Click a span to see its `gen_ai.*` attributes.
+counts. Click a span to see its `gen_ai.*` attributes. Module 04's gateway now
+also surfaces each LLM call's prompt and completion as OpenInference
+`input.value` / `output.value`, so the **Input** and **Output** are visible right
+in the trace view — which is exactly what the judge reads.
 
-### Run an evaluation (LLM-as-a-judge)
+!!! tip "The DeepSeek judge is already wired"
+    The workshop's Phoenix is preconfigured for DeepSeek (`DEEPSEEK_API_KEY` is
+    injected from your Codespace key, and `PHOENIX_ALLOWED_PROVIDERS=DEEPSEEK`
+    restricts the model menu), so **DeepSeek is the only — and obvious — choice**
+    everywhere you pick a judge model. You never hand-enter a key. If your Phoenix
+    is *not* preconfigured, add the key once under **Settings → AI Providers →
+    DeepSeek** and it behaves the same from there on.
 
-The repo ships a small, version-pinned eval script that builds two judge
-classifiers — **hallucination** (is the answer grounded in its context?) and
-**relevance** (does it answer the question?):
+### Create and run an LLM-as-a-judge (no code)
+
+You'll score the SRE-agent traces from your last run against a judge classifier —
+start with **hallucination** (is the answer grounded in the tool output it was
+given?) or **relevance** (does it actually answer the question?).
+
+1. **Pick the traces.** Open your project's **Traces** table and select the
+   SRE-agent runs you want to grade (filter to the `agent.run` / LLM spans so each
+   example carries a clean question → answer pair).
+2. **Capture them as a dataset.** Use **Add to Dataset** to save the selected
+   spans as a dataset — each example keeps the span's **Input** (the question) and
+   **Output** (the agent's answer). This is the set the judge will score.
+3. **Add an LLM evaluator.** Open the new dataset → **Evaluators** tab →
+   **Add evaluator** → **LLM**. Phoenix opens it in the **Playground**:
+     - **Model:** DeepSeek (the only provider in the menu — already keyed).
+     - **Template:** write the judge prompt, e.g. *“You are grading whether the
+       ANSWER is grounded in the provided CONTEXT/question. Reply with a single
+       label: `hallucinated` or `factual`.”* (or a relevance rubric:
+       `relevant` / `irrelevant`).
+     - **Input mapping:** map the template's `{question}` / `{answer}` variables
+       to the dataset's **input** / **output** fields.
+     - **Test** it on one example to see the label + explanation, then **Save**.
+4. **Run it.** From the dataset, **Run** an experiment in the Playground. Phoenix
+   calls the DeepSeek judge **server-side** over every example — no local runtime.
+
+### Read the scores
+
+The experiment's results table gains one **label / score column per evaluator**.
+Sort by it to surface the weakest answers, and click any row to read the judge's
+**label, score, and explanation** next to that example's input and output. That is
+your end-to-end eval — created, run, and read entirely in the Phoenix UI.
+
+This is *exploratory*: fast, visual, good for discovering failure modes by hand.
+For a repeatable gate you can run in CI, use dt-evals (Part B).
+
+### Script the same judge instead (optional / advanced)
+
+The UI flow above is the fast path. The repo also ships a small, version-pinned
+script that builds the same two classifiers (**hallucination** + **relevance**)
+from code — handy for CI, for grading the **live** spans in place, or when you
+have no traffic yet:
 
 ```bash
 cd evals && uv sync
@@ -62,14 +113,12 @@ on the traces in the UI. Details: [`evals/phoenix/README.md`](https://github.com
     The live path maps prompt/response content out of your spans in every common
     shape our agents emit — OTel GenAI semconv (`gen_ai.input.messages`, indexed
     `gen_ai.prompt.N.content` / `gen_ai.completion.N.content`, or `gen_ai.*`
-    log-events) as well as OpenInference (`input.value` / `output.value`). If it
-    still finds no content, it now prints exactly which `attributes.*` were
-    present so you can see what to add. The usual cause is instrumentation that
-    **drops message bodies by default** — enable content capture and re-drive the
-    agents (see the README). The bundled dataset path above always works offline.
-
-This is *exploratory*: fast, visual, good for discovering failure modes. For a
-gate you can run in CI, use dt-evals.
+    log-events) as well as OpenInference (`input.value` / `output.value` — the
+    pair the gateway now also populates). If it still finds no content, it prints
+    exactly which `attributes.*` were present so you can see what to add. The
+    usual cause is instrumentation that **drops message bodies by default** —
+    enable content capture and re-drive the agents (see the README). The bundled
+    dataset path always works offline.
 
 ---
 
