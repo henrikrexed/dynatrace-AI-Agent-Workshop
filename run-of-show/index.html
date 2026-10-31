@@ -917,18 +917,22 @@ admission control can never see because the pod is already running and compliant
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>tetragon<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>ds/tetragon<span class="w"> </span>-c<span class="w"> </span>tetragon<span class="w"> </span>--<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>tetra<span class="w"> </span>getevents<span class="w"> </span>-o<span class="w"> </span>compact<span class="w"> </span>--namespace<span class="w"> </span>agent-sandbox
 </code></pre></div>
-<p><strong>Apply this.</strong> In a second terminal, schedule a compliant pod that reads its own
-service-account token — exactly what a credential-stealing agent would do:</p>
+<p><strong>Apply this.</strong> In a second terminal, schedule a compliant pod that reads
+credentials <strong>in a loop</strong> — <code>/etc/passwd</code> and its own service-account token,
+exactly what a credential-stealing agent would do. The loop matters: <code>tetra
+getevents</code> is a live tail, so a one-shot read can land before you are watching;
+reading every 2 s guarantees the trigger lands inside your watch window.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>agent-sandbox<span class="w"> </span>run<span class="w"> </span>snoop<span class="w"> </span>--image<span class="o">=</span>busybox:1.36<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--overrides<span class="o">=</span><span class="s1">'{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"]}]}}'</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>sh<span class="w"> </span>-c<span class="w"> </span><span class="s2">"cat /var/run/secrets/kubernetes.io/serviceaccount/token; sleep 30"</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--overrides<span class="o">=</span><span class="s1">'{"spec":{"containers":[{"name":"snoop","image":"busybox:1.36","securityContext":{"allowPrivilegeEscalation":false,"runAsNonRoot":true,"runAsUser":65534,"capabilities":{"drop":["ALL"]},"seccompProfile":{"type":"RuntimeDefault"}},"command":["sh","-c","while true; do cat /etc/passwd /var/run/secrets/kubernetes.io/serviceaccount/token &gt;/dev/null 2&gt;&amp;1; sleep 2; done"]}]}}'</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--command<span class="w"> </span>--<span class="w"> </span>sh<span class="w"> </span>-c<span class="w"> </span><span class="s1">'while true; do cat /etc/passwd /var/run/secrets/kubernetes.io/serviceaccount/token &gt;/dev/null 2&gt;&amp;1; sleep 2; done'</span>
 <a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>agent-sandbox<span class="w"> </span>delete<span class="w"> </span>pod<span class="w"> </span>snoop<span class="w"> </span>--ignore-not-found<span class="w">   </span><span class="c1"># clean up; leave the policy running</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># when you have seen the event, stop the loop and clean up (leave the policy running)</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>kubectl<span class="w"> </span>-n<span class="w"> </span>agent-sandbox<span class="w"> </span>delete<span class="w"> </span>pod<span class="w"> </span>snoop<span class="w"> </span>--ignore-not-found
 </code></pre></div>
-<p>The first terminal prints a <code>process_kprobe</code> line for <code>security_file_permission</code>
-on the <code>snoop</code> pod, naming <code>cat</code> and the token path — your detection firing. The
-pod ran clean under Pod Security <em>and</em> was caught reading a credential, because
-runtime detection sees what admission cannot.</p>
+<p>Within a couple of seconds the first terminal prints a <code>process_kprobe</code> line for
+<code>security_file_permission</code> on the <code>snoop</code> pod, naming <code>cat</code> and the sensitive
+path — your detection firing. The pod ran clean under Pod Security <em>and</em> was
+caught reading a credential, because runtime detection sees what admission cannot.</p>
 <p><strong>Go deeper.</strong> <a href="../03-secure/#detect-an-agent-reading-sensitive-files">03 — Secure agents</a>.</p>
 <hr />
 <h2 id="step-4-show-the-observability-configuration-in-the-collector">Step 4 — Show the observability configuration in the collector<a class="headerlink" href="#step-4-show-the-observability-configuration-in-the-collector" title="Permanent link">&para;</a></h2>
