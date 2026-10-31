@@ -21,7 +21,7 @@ ISI-6957/ISI-6955):
 This proves the *query* fix is real on a live server. The scoring path (the LLM
 judge) is already covered by the bundled dataset, so no judge key is needed here.
 
-Run:  python phoenix/verify_from_phoenix.py   (in a venv with arize-phoenix +
+Run:  uv run python phoenix/verify_from_phoenix.py   (in a venv with arize-phoenix +
       arize-phoenix-client + the opentelemetry OTLP/http exporter installed)
 """
 from __future__ import annotations

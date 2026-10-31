@@ -2,7 +2,7 @@
 
 > Generated from `evals/ground-truth/03-oomkilled.json`
 > (answer key: `scenarios/03-oomkilled/expected-diagnosis.md`). Do not hand-edit — run
-> `python dt-evals/gen_diagnosis_evaluators.py` after the answer key changes.
+> `uv run python dt-evals/gen_diagnosis_evaluators.py` after the answer key changes.
 
 Register once (interactive — paste the prompt below when asked):
 
