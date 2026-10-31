@@ -650,6 +650,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Part B — dt-evals: scores inside Dynatrace (optional)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-config-is-the-evaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The config is the evaluation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -676,10 +693,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#also-in-dynatrace-dt-evals-optional" class="md-nav__link">
+  <a href="#author-a-custom-evaluator-in-dynatrace-dt-evals-optional" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Also in Dynatrace (dt-evals — optional)
+        Author a custom evaluator in Dynatrace (dt-evals — optional)
       
     </span>
   </a>
@@ -916,21 +933,76 @@ not a required step.</p>
 <p><a href="https://github.com/dynatrace-oss/dt-evals"><code>dt-evals</code></a> is a config-driven CLI that
 samples <code>gen_ai.*</code> spans from your Dynatrace environment, scores each with an LLM
 judge, and writes <code>gen_ai.evaluation.result</code> <strong>bizevents</strong> back — so a low score is
-one click from the trace, prompt, and tool calls that caused it.</p>
+one click from the trace, prompt, and tool calls that caused it. Where Part A had
+you <em>create</em> an evaluation by clicking, this path has you <strong>create one as a config
+file</strong> — and that distinction is the whole point of the section: you don't just run
+a script, you <strong>open the config and see that the config <em>is</em> the evaluation</strong>, then
+run it.</p>
+<h4 id="the-config-is-the-evaluation">The config is the evaluation<a class="headerlink" href="#the-config-is-the-evaluation" title="Permanent link">&para;</a></h4>
+<p>Open <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/workshop-agents.dt-eval.yaml"><code>evals/dt-evals/workshop-agents.dt-eval.yaml</code></a>.
+Four blocks define the whole evaluation — grade <strong>what</strong>, judged <strong>by whom</strong>, scored
+on <strong>which metrics</strong>, failing <strong>when</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Block</th>
+<th>What you're declaring</th>
+<th>Authoring question</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scope</code></td>
+<td>which spans to pull (<code>service</code>, <code>since</code>, <code>sampling</code>)</td>
+<td><em>What do I grade?</em></td>
+</tr>
+<tr>
+<td><code>judge</code></td>
+<td>the LLM-as-a-judge (DeepSeek, OpenAI-compatible)</td>
+<td><em>Who grades it?</em></td>
+</tr>
+<tr>
+<td><code>metrics.enabled</code></td>
+<td>the rubrics to run (relevance, faithfulness, hallucination, coherence, toxicity, prompt-injection)</td>
+<td><em>What am I scoring for?</em></td>
+</tr>
+<tr>
+<td><code>alerts.thresholds</code></td>
+<td>the pass/fail bar per metric that makes the run exit non-zero</td>
+<td><em>When does it fail?</em></td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">scope</span><span class="p">:</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${DT_EVAL_SERVICE}</span><span class="w">   </span><span class="c1"># which agent's spans — you set this below</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">since</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2h</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">sampling</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> strategy</span><span class="p">:</span><span class="w"> </span><span class="nv">latest</span><span class="p p-Indicator">,</span><span class="nt"> count</span><span class="p">:</span><span class="w"> </span><span class="nv">25</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">metrics</span><span class="p">:</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">relevance</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">faithfulness</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">hallucination</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">coherence</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">toxicity</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">prompt-injection</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="nt">alerts</span><span class="p">:</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">thresholds</span><span class="p">:</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="nt">hallucination</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w">            </span><span class="c1"># fail if ANY hallucination is detected</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="nt">relevance</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.6</span><span class="w">              </span><span class="c1"># fail below 0.6</span>
+</code></pre></div>
+<p><strong>Author it in two edits.</strong> Point <code>scope</code> at <em>your</em> agent by setting
+<code>DT_EVAL_SERVICE</code> (it fills <code>scope.service</code> at render time — discover it, don't
+guess; defaults to <code>sre-agent</code>), and set the gate by tightening a
+<code>alerts.thresholds</code> line — e.g. <code>relevance: 0.8</code> to demand strongly on-topic
+answers. Those two edits <em>are</em> the evaluation; the run below just executes it.</p>
 <p><strong>Credentials</strong> live in <code>evals/.env</code>: a <strong>dedicated</strong> Dynatrace <code>dt0c01</code> token
-(<code>storage:spans:read</code> + <code>storage:events:write</code>), your <code>…apps.dynatrace.com</code> URL, a
-judge key (a DeepSeek key works), and <code>DT_EVAL_SERVICE</code> set to the agent's
-<code>service.name</code> (defaults to <code>sre-agent</code>). For the exact scopes and where each token
-is generated, see
+(<code>storage:spans:read</code> + <code>storage:events:write</code>), your <code>…apps.dynatrace.com</code> URL, and
+a judge key (a DeepSeek key works). For the exact scopes and where each token is
+generated, see
 <strong><a href="../start-benchmark/#4-create-the-required-tokens">Start the benchmark → Create the required tokens</a></strong>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>./run-dt-eval.sh<span class="w">          </span><span class="c1"># renders the config, then runs validate + run</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">DT_EVAL_SERVICE</span><span class="o">=</span><span class="s2">"sre-agent"</span><span class="w">   </span><span class="c1"># the service.name you discovered</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>./run-dt-eval.sh<span class="w">                     </span><span class="c1"># renders the config, then runs validate + run</span>
 </code></pre></div>
 <p>The run exits non-zero on a threshold breach — a ready-made CI gate. Read the
 scores back in a Dynatrace Notebook:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>fetch bizevents
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>| filter event.type == "gen_ai.evaluation.result"
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>fetch bizevents
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>| filter event.type == "gen_ai.evaluation.result"
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
 </code></pre></div>
 <p>Details, including the shared-vs-per-attendee tenant model:
 <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/README.md"><code>evals/dt-evals/README.md</code></a>.</p>
@@ -953,27 +1025,45 @@ forbidden cross-channel claims?</p>
 <code>OOMKilled</code> status), a cross-channel claim is an unambiguous fail — so this grades
 objectively, even with no judge model.</p>
 <h3 id="deterministic-grade-offline-no-key-recommended">Deterministic grade (offline, no key) — recommended<a class="headerlink" href="#deterministic-grade-offline-no-key-recommended" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">cd</span><span class="w"> </span>evals
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>python<span class="w"> </span>phoenix/run_diagnosis_eval.py<span class="w">        </span><span class="c1"># bundled golden + confab diagnoses</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">cd</span><span class="w"> </span>evals
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_diagnosis_eval.py<span class="w">        </span><span class="c1"># bundled golden + confab diagnoses</span>
 </code></pre></div>
 <p>It prints a PASS/FAIL per diagnosis and writes
 <code>phoenix/out/diagnosis_eval_results.csv</code>. Add <code>--llm-judge</code> (needs a judge key) to
 also run an LLM root-cause grader, or <code>--from-phoenix</code> to grade the agent's <em>live</em>
 diagnosis spans and annotate them back onto the traces.</p>
-<h3 id="also-in-dynatrace-dt-evals-optional">Also in Dynatrace (dt-evals — optional)<a class="headerlink" href="#also-in-dynatrace-dt-evals-optional" title="Permanent link">&para;</a></h3>
-<p>For teams using Part B, each answer key also renders into a dt-evals custom
-evaluator. Register the one for the scenario you ran, then grade its spans:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1"># Register once — paste the judge prompt from evaluators/diagnosis-01-crashloopbackoff.md</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>./run-dt-eval.sh<span class="w"> </span>evaluators<span class="w"> </span>add
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Then grade the diagnosis spans for that scenario:</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>./run-dt-eval.sh<span class="w"> </span>--config<span class="w"> </span>scenario-diagnosis.dt-eval.yaml<span class="w"> </span>--metric<span class="w"> </span>diagnosis-01-crashloopbackoff
+<h3 id="author-a-custom-evaluator-in-dynatrace-dt-evals-optional">Author a custom evaluator in Dynatrace (dt-evals — optional)<a class="headerlink" href="#author-a-custom-evaluator-in-dynatrace-dt-evals-optional" title="Permanent link">&para;</a></h3>
+<p>For teams using Part B, the sharpest form of authoring is to <strong>write your own
+evaluator</strong> — a rubric that encodes exactly what a correct diagnosis of <em>one</em>
+scenario must say. Each answer key is compiled into one, so you read it, register
+it, enable it, and run it.</p>
+<p><strong>1. Read the rubric.</strong> Open
+<a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/evaluators/diagnosis-01-crashloopbackoff.md"><code>evals/dt-evals/evaluators/diagnosis-01-crashloopbackoff.md</code></a>.
+Its <strong>Judge prompt</strong> section <em>is</em> the evaluator — a binary grader (1 = correct,
+0 = incorrect) with three clauses: it must <strong>identify the root cause</strong>, <strong>cite ≥ 3
+required signals</strong> (<code>reason: CrashLoopBackOff</code>, the <code>Back-off restarting failed
+container</code> event, a non-zero <code>exitCode</code>, the fatal log line), and make <strong>none of
+the must-not-claim</strong> cross-channel confabulations (image-pull, OOM, probe,
+node/quota). That <em>required-signals + must-not-claim</em> shape is the pattern for
+authoring any objective grader. (Generated from the answer key — regenerate with
+<code>uv run python dt-evals/gen_diagnosis_evaluators.py</code>, don't hand-edit.)</p>
+<p><strong>2. Register it, enable it, run it.</strong> Register writes your rubric into the local
+custom-evaluator store; enabling it means uncommenting its line under
+<code>metrics.enabled</code> (and the matching <code>alerts.thresholds</code>) in
+<a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/scenario-diagnosis.dt-eval.yaml"><code>scenario-diagnosis.dt-eval.yaml</code></a>;
+then run scoped to the one scenario you diagnosed:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="c1"># Register once — paste the judge prompt from evaluators/diagnosis-01-crashloopbackoff.md</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>./run-dt-eval.sh<span class="w"> </span>evaluators<span class="w"> </span>add
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Then grade the diagnosis spans for that scenario:</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>./run-dt-eval.sh<span class="w"> </span>--config<span class="w"> </span>scenario-diagnosis.dt-eval.yaml<span class="w"> </span>--metric<span class="w"> </span>diagnosis-01-crashloopbackoff
 </code></pre></div>
 <p>Swap in the evaluator name for the scenario you ran —
 <code>diagnosis-01-crashloopbackoff</code>, <code>diagnosis-02-imagepullbackoff</code>,
 <code>diagnosis-03-oomkilled</code>, or <code>diagnosis-12-intermittent-5xx</code> (one per
-<code>evaluators/*.md</code>). <code>./run-dt-eval.sh evaluators add</code> is a passthrough to the
-pinned <code>dt-evals</code> CLI, so there is nothing to export first.</p>
+<code>evaluators/*.md</code>; register and enable whichever you're grading).
+<code>./run-dt-eval.sh evaluators add</code> is a passthrough to the pinned <code>dt-evals</code> CLI,
+so there is nothing to export first.</p>
 <p>Correct diagnoses score 1, misses score 0 — a per-scenario pass/fail bizevent next
 to the trace. Details:
 <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/ground-truth/README.md"><code>evals/ground-truth/README.md</code></a>.</p>
@@ -1005,15 +1095,14 @@ token/cost/latency drive <strong><a href="../07-optimize/">07 — Optimize</a></
 </table>
 <h2 id="what-you-achieved-acceptance">What you achieved (acceptance)<a class="headerlink" href="#what-you-achieved-acceptance" title="Permanent link">&para;</a></h2>
 <ul>
-<li>A Phoenix eval run produces labelled scores you can inspect in the UI (or the
-  CSV) — even offline against the bundled dataset. This is the workshop's path to
-  creating an evaluation.</li>
-<li><em>(Optional)</em> A dt-evals run lands the same kind of scores <strong>inside Dynatrace</strong> as
-  queryable bizevents, with a CI-friendly pass/fail gate — for teams that want them
-  there.</li>
-<li>A diagnosis-grading run (Part C) scores an SRE-agent diagnosis against a
-  scenario answer key — PASS/FAIL against registered ground truth, offline or in
-  Dynatrace.</li>
+<li>You <strong>created an evaluation in the Phoenix UI</strong> (dataset → evaluator → judge)
+  and read its labelled scores — no code. This is the workshop's recommended path.</li>
+<li><em>(Optional)</em> You saw how the same evaluation is <strong>authored as a dt-evals config</strong>
+  — set its scope and alert gate, run it, and the scores land <strong>inside Dynatrace</strong>
+  as queryable bizevents with a CI-friendly pass/fail gate.</li>
+<li><em>(Optional)</em> You can <strong>author a custom evaluator</strong> (Part C) — a required-signals</li>
+<li>must-not-claim rubric — register and enable it, and grade an SRE-agent
+  diagnosis PASS/FAIL against the scenario answer key, offline or in Dynatrace.</li>
 </ul>
 <p>Next: <strong><a href="../07-optimize/">07 — Optimize</a></strong> — now that you can <em>measure</em> cost and
 quality, go cut the waste.</p>
