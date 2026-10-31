@@ -78,8 +78,13 @@ spec:
           - key: k8s.cluster.name
             value: workshop
             action: upsert
-      # Normalise OpenInference / Traceloop LLM span attributes to OpenTelemetry
-      # gen_ai.* semconv so Dynatrace AI Observability and Phoenix agree on names.
+      # Normalise LLM span attributes so Dynatrace AI Observability and Phoenix
+      # agree on names. Two directions, both additive:
+      #   - OpenInference / Traceloop -> OpenTelemetry gen_ai.* (tokens, model,
+      #     provider) for the Dynatrace export.
+      #   - kagent/ADK gcp.vertex.agent.* -> OpenInference input.value /
+      #     output.value so Phoenix shows prompt/response text (ISI-6960).
+      # Nothing is deleted — the vertex and gen_ai.* attrs survive side by side.
       #
       # RECOMMENDED for production: use the purpose-built `genainormalizer`
       # processor instead of hand-rolled OTTL. It ships richer, maintained
@@ -98,6 +103,9 @@ spec:
       # heavier `opentelemetry-collector-contrib` image (or a custom OCB build).
       # We keep the OTTL transform below so the default k8s image works with no
       # extra image weight; swap to `genainormalizer` when you move to contrib.
+      # Note: genainormalizer only reads openinference/openllmetry sources, so the
+      # kagent/ADK gcp.vertex.agent.* -> OpenInference block below is still
+      # required even after adopting it.
       transform/genai-normalize:
         error_mode: ignore
         trace_statements:
@@ -107,6 +115,22 @@ spec:
               - set(attributes["gen_ai.usage.output_tokens"], attributes["llm.token_count.completion"]) where attributes["llm.token_count.completion"] != nil
               - set(attributes["gen_ai.request.model"], attributes["llm.model_name"]) where attributes["llm.model_name"] != nil
               - set(attributes["gen_ai.system"], attributes["llm.provider"]) where attributes["llm.provider"] != nil
+              # --- OpenInference enrichment for Phoenix (ISI-6960) ---------------
+              # kagent (0.10.4) runs Google ADK, which records the LLM request and
+              # response JSON on the `call_llm` span under gcp.vertex.agent.*.
+              # Phoenix's trace UI and evals/phoenix/run_phoenix_eval.py
+              # --from-phoenix read the OpenInference keys input.value /
+              # output.value (span_mapping.INPUT_KEYS[0] / OUTPUT_KEYS[0]), which
+              # neither the vertex attrs nor the gen_ai.* mapping above produce.
+              # Copy them across ADDITIVELY — the originals stay intact for the
+              # Dynatrace export and the gen_ai.* pipeline. Both values are already
+              # JSON strings (ADK json.dumps), so input.value/output.value are
+              # plain strings as OpenInference expects.
+              - set(attributes["openinference.span.kind"], "LLM") where attributes["gcp.vertex.agent.llm_request"] != nil or attributes["gcp.vertex.agent.llm_response"] != nil or name == "call_llm"
+              - set(attributes["input.value"], attributes["gcp.vertex.agent.llm_request"]) where attributes["gcp.vertex.agent.llm_request"] != nil
+              - set(attributes["input.mime_type"], "application/json") where attributes["gcp.vertex.agent.llm_request"] != nil
+              - set(attributes["output.value"], attributes["gcp.vertex.agent.llm_response"]) where attributes["gcp.vertex.agent.llm_response"] != nil
+              - set(attributes["output.mime_type"], "application/json") where attributes["gcp.vertex.agent.llm_response"] != nil
     exporters:
       debug:
         verbosity: basic
