@@ -58,6 +58,16 @@ It prints a per-metric summary, writes `phoenix/out/phoenix_eval_results.csv`,
 and (with `--from-phoenix`) annotates the originating spans so the labels show up
 on the traces in the UI. Details: [`evals/phoenix/README.md`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/phoenix/README.md).
 
+!!! note "`--from-phoenix` needs message content on the spans"
+    The live path maps prompt/response content out of your spans in every common
+    shape our agents emit — OTel GenAI semconv (`gen_ai.input.messages`, indexed
+    `gen_ai.prompt.N.content` / `gen_ai.completion.N.content`, or `gen_ai.*`
+    log-events) as well as OpenInference (`input.value` / `output.value`). If it
+    still finds no content, it now prints exactly which `attributes.*` were
+    present so you can see what to add. The usual cause is instrumentation that
+    **drops message bodies by default** — enable content capture and re-drive the
+    agents (see the README). The bundled dataset path above always works offline.
+
 This is *exploratory*: fast, visual, good for discovering failure modes. For a
 gate you can run in CI, use dt-evals.
 
@@ -191,7 +201,7 @@ to the trace. Details:
 
 | Agent | Good eval questions |
 |-------|---------------------|
-| **SRE agent** | Did it correctly identify the unhealthy pod? Did it call the right k8s tool (not guess)? Was the diagnosis grounded in real tool output (no hallucinated pod names)? |
+| **SRE agent** | Did it correctly identify the unhealthy pod? Did it call the right k8s/Dynatrace tool (not guess)? Was the diagnosis grounded in real tool output (no hallucinated pod names)? |
 | **BMAD crew** | Did the workflow produce the expected artifacts (issues → branch → PR)? Did the developer agent stay within its repo scope? Did it finish within a token budget? |
 
 ## What you achieved (acceptance)
