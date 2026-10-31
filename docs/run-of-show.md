@@ -218,33 +218,32 @@ input/output token counts and latency. That trace is what Steps 6 and 7 inspect.
 ## Step 6 — Open Phoenix and create one evaluation
 
 **What & why.** Observability shows *what* the agent did; evaluation scores
-*whether it was any good*. Phoenix is the fast, visual, exploratory judge — open it
-and run one LLM-as-a-judge evaluation over the traces you just made.
+*whether it was any good*. Phoenix is the fast, visual, exploratory judge — and you
+create **and** run one LLM-as-a-judge evaluation **entirely in its UI**, no code,
+scored by the same preconfigured **DeepSeek** judge.
 
-**Do it.** Phoenix is already forwarded on port **6006** — so **open it first**:
+**Do it.** Phoenix is already forwarded on port **6006** — open it and build the
+eval in four clicks:
 
-1. Open the Phoenix UI → **[http://localhost:6006](http://localhost:6006)**. Each
-   agent run from Step 5 is an LLM trace: prompt, response, tool spans, token
-   counts. Click one to see its `gen_ai.*` attributes. This is the surface you'll
-   configure the evaluation against and read the scores back from.
-2. From the `evals/` project, run the LLM-as-a-judge eval. The bundled dataset
-   works offline; `--from-phoenix` grades the **live** spans you just opened and
-   writes the labels back onto them:
+1. Open the Phoenix UI → **[http://localhost:6006](http://localhost:6006)** and go
+   to your project's **Traces**. Each run from Step 5 is an LLM trace; its **Input**
+   (question) and **Output** (answer) are now visible on the span.
+2. Select the SRE-agent traces → **Add to Dataset** (each example keeps the
+   span's input + output).
+3. Open that dataset → **Evaluators** tab → **Add evaluator → LLM**. In the
+   **Playground**: pick **DeepSeek** (the only model in the menu — already keyed),
+   paste a judge template (**hallucination**: *is the answer grounded?* — or
+   **relevance**: *does it answer the question?*), map `{question}`/`{answer}` to
+   the dataset **input**/**output**, **Test** on one example, **Save**.
+4. **Run** the experiment — DeepSeek scores every example server-side.
 
-```bash
-cd evals && uv sync
-uv run python phoenix/run_phoenix_eval.py                # bundled sample dataset — just needs a judge key
-uv run python phoenix/run_phoenix_eval.py --from-phoenix # grade the LIVE spans and annotate them in the UI
-```
+**Apply this.** The results table gains a **label/score column** per evaluator;
+click a row to read the judge's label + explanation next to the example. No key
+entry — DeepSeek is preconfigured (`Settings → AI Providers` is the fallback). A
+scriptable version (`evals/phoenix/run_phoenix_eval.py`, incl. `--from-phoenix` to
+annotate live spans) is the optional CI path.
 
-**Apply this.** The script builds two judge classifiers — **hallucination** (is
-the answer grounded in its context?) and **relevance** (does it answer the
-question?). With `--from-phoenix` it writes the scores back onto the originating
-spans, so **refresh the Phoenix UI** and the labels now appear on the traces you
-opened in step 1. It also drops a CSV at
-`evals/phoenix/out/phoenix_eval_results.csv`.
-
-**Go deeper.** [06 — Evaluate · Part A (Phoenix)](06-evaluate.md#part-a-phoenix-explore-and-judge-live-traces).
+**Go deeper.** [06 — Evaluate · Part A (Phoenix)](06-evaluate.md#part-a-phoenix-create-an-evaluation-in-the-ui).
 
 ---
 
@@ -339,18 +338,19 @@ hop-count and token spend you'll scrutinise in Step 13.
 **What & why.** Close the loop you opened in Step 6: read the scores. Phoenix is
 where you *discover failure modes* interactively.
 
-**Do it.** In the Phoenix UI (`http://localhost:6006`), open the traces you graded.
-Each now carries **hallucination** and **relevance** labels (from the
-`--from-phoenix` run). Sort by score to surface the weakest answers, and open one to
-read the prompt, response, tool spans, and token counts behind the label.
+**Do it.** In the Phoenix UI (`http://localhost:6006`), reopen the dataset you
+scored in Step 6 and look at its **experiment results**. Each example row carries
+the judge's **label and score** (hallucination / relevance). Sort by score to
+surface the weakest answers, and click a row to read the judge's **explanation**
+alongside that example's input and output.
 
 **Apply this.** For the SRE agent the questions that matter: did it identify the
 right pod, call the right tool (not guess), and stay grounded in real tool output
-(no hallucinated pod names)? The per-metric summary and
-`evals/phoenix/out/phoenix_eval_results.csv` give you the same numbers outside the
-UI.
+(no hallucinated pod names)? If you also ran the optional script, the same numbers
+land in `evals/phoenix/out/phoenix_eval_results.csv` and as labels on the live
+spans.
 
-**Go deeper.** [06 — Evaluate · Part A (Phoenix)](06-evaluate.md#run-an-evaluation-llm-as-a-judge).
+**Go deeper.** [06 — Evaluate · Part A · Read the scores](06-evaluate.md#read-the-scores).
 
 ---
 
