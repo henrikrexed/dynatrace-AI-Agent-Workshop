@@ -181,6 +181,18 @@ kubectl -n agent-sandbox run snoop --image=busybox:1.36 --restart=Never \
     detection firing — the pod ran clean under Pod Security *and* was caught
     reading a credential, because runtime detection sees what admission cannot.
 
+!!! warning "No events? Check the policy *loaded*, not just that it applied"
+    `kubectl apply` only stores the policy — the Tetragon agent still has to load
+    the kprobe into the kernel and can **silently reject** it, leaving nothing to
+    fire. Confirm it loaded before you blame the trigger:
+    ```bash
+    kubectl -n tetragon exec ds/tetragon -c tetragon -- tetra tracingpolicy list
+    ```
+    `STATE` should read `enabled`. A `load_error` (or a `ReturnArgAction … Post
+    unsupported` line in `kubectl -n tetragon logs ds/tetragon -c tetragon`)
+    usually means a **stale policy** — `git pull origin main` and re-apply. Full
+    ladder: [Troubleshooting → Tetragon fires no events](troubleshooting.md#tetragon-is-ready-but-the-sensitive-file-policy-fires-no-events).
+
 Clean up:
 
 ```bash
