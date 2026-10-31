@@ -1099,7 +1099,7 @@ forbidden cross-channel claims?</p>
 objectively, even with no judge model.</p>
 <h3 id="deterministic-grade-offline-no-key">Deterministic grade (offline, no key)<a class="headerlink" href="#deterministic-grade-offline-no-key" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>evals
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>python<span class="w"> </span>phoenix/run_diagnosis_eval.py<span class="w">        </span><span class="c1"># bundled golden + confab diagnoses</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_diagnosis_eval.py<span class="w">        </span><span class="c1"># bundled golden + confab diagnoses</span>
 </code></pre></div>
 <p>It prints a PASS/FAIL per diagnosis and writes
 <code>phoenix/out/diagnosis_eval_results.csv</code>. Add <code>--llm-judge</code> (needs a judge key) to
