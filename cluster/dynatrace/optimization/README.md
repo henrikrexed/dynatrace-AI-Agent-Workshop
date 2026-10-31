@@ -1,18 +1,22 @@
 # Phase 5 · AI Agent Optimization artifacts (ISI-6720)
 
-Dynatrace artifacts that turn the kagent crew's `gen_ai.*` spans into the three
-optimization signals from **[`docs/06-optimize.md`](../../../docs/06-optimize.md)**
+Dynatrace artifacts that turn the kagent crew's `gen_ai.*` spans into an
+**understand-first** read of a single agent run (ISI-6976), the three
+optimization signals from **[`docs/07-optimize.md`](../../../docs/07-optimize.md)**
 (token spend, unused tools, inefficient loops), a reproducible **before/after**
 story, and a **continuous guardian** that gates cost + quality regressions.
 
-All four are **dtctl-ready YAML** — `dtctl apply`/`dtctl create` straight from
-this directory. Every DQL/SLI was validated against live crew telemetry before
-commit.
+All are **dtctl-ready YAML** — `dtctl apply`/`dtctl create` straight from this
+directory. Every DQL/SLI was validated against live crew telemetry before
+commit. **Start with `ai-agent-workflow-steps.notebook.yaml`** — it walks one run
+from the crew list down to the per-hop token bill, so you read what the agent is
+doing before you cut it.
 
 | File | Kind | Deploy |
 |------|------|--------|
+| `ai-agent-workflow-steps.notebook.yaml` | Notebook (**understand first**) | `dtctl create notebook -f ai-agent-workflow-steps.notebook.yaml` |
 | `ai-agent-optimization.dashboard.yaml` | Dashboard | `dtctl apply -f ai-agent-optimization.dashboard.yaml` |
-| `ai-agent-optimization-before-after.notebook.yaml` | Notebook | `dtctl create notebook -f ai-agent-optimization-before-after.notebook.yaml` |
+| `ai-agent-optimization-before-after.notebook.yaml` | Notebook (**then cut cost**) | `dtctl create notebook -f ai-agent-optimization-before-after.notebook.yaml` |
 | `ai-agent-quality-cost.guardian.yaml` | Site Reliability Guardian (settings) | `dtctl create settings -f ai-agent-quality-cost.guardian.yaml --schema app:dynatrace.site.reliability.guardian:guardians --scope environment` |
 | `ai-agent-optimization.workflow.yaml` | Workflow (scheduled guardian run) | `dtctl create workflow -f ai-agent-optimization.workflow.yaml` |
 | `tool-grants.lookup.json` | Lookup table (tools each agent is granted) | embedded inline in the dashboard/notebook coverage query — no deploy needed (or upload as a native Dynatrace lookup table) |
@@ -28,6 +32,9 @@ commit.
 
 ```bash
 dtctl config use-context <your-tenant>
+
+# 0 · Read-the-run notebook (understand one agent run before cutting anything)
+dtctl create notebook -f ai-agent-workflow-steps.notebook.yaml
 
 # 1 · Dashboard + notebook (find the waste, tell the before/after story)
 dtctl apply -f ai-agent-optimization.dashboard.yaml
