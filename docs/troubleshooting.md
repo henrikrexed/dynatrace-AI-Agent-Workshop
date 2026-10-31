@@ -145,6 +145,27 @@ kubectl -n kagent get secret kagent-deepseek    # model key present?
 timeout generous (`curl -m 300`). Watch progress in the kagent UI
 (`kubectl -n kagent port-forward svc/kagent-ui 8080:8080`).
 
+**The SRE agent fails with `http://dynatrace-mcp.kagent:3000/mcp … context
+deadline exceeded`.** The Dynatrace MCP server was removed from the workshop —
+the SRE agent is now Kubernetes-only. This error means your cluster still holds
+an **orphaned CR** from a pre-removal install: the old `dynatrace-mcp` MCPServer
+and `dynatrace-mcp-remote` RemoteMCPServer were left behind, and the controller
+keeps trying (and failing) to reach the server that no longer exists. Current
+`main` no longer ships these manifests, so re-running the installer now
+self-heals — it purges the orphans on every run:
+
+```bash
+bash agents/install-agents.sh
+```
+
+Or delete them manually:
+
+```bash
+kubectl -n kagent delete remotemcpserver dynatrace-mcp-remote --ignore-not-found
+kubectl -n kagent delete mcpserver       dynatrace-mcp        --ignore-not-found
+kubectl -n kagent delete deployment,service dynatrace-mcp     --ignore-not-found
+```
+
 ---
 
 ## Module 03 — Secure
