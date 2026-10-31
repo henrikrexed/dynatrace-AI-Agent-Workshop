@@ -132,18 +132,54 @@ on the traces in the UI. Details: [`evals/phoenix/README.md`](https://github.com
 [`dt-evals`](https://github.com/dynatrace-oss/dt-evals) is a config-driven CLI that
 samples `gen_ai.*` spans from your Dynatrace environment, scores each with an LLM
 judge, and writes `gen_ai.evaluation.result` **bizevents** back — so a low score is
-one click from the trace, prompt, and tool calls that caused it.
+one click from the trace, prompt, and tool calls that caused it. Where Part A had
+you *create* an evaluation by clicking, this path has you **create one as a config
+file** — and that distinction is the whole point of the section: you don't just run
+a script, you **open the config and see that the config _is_ the evaluation**, then
+run it.
+
+#### The config is the evaluation
+
+Open [`evals/dt-evals/workshop-agents.dt-eval.yaml`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/workshop-agents.dt-eval.yaml).
+Four blocks define the whole evaluation — grade **what**, judged **by whom**, scored
+on **which metrics**, failing **when**:
+
+| Block | What you're declaring | Authoring question |
+|-------|-----------------------|--------------------|
+| `scope` | which spans to pull (`service`, `since`, `sampling`) | *What do I grade?* |
+| `judge` | the LLM-as-a-judge (DeepSeek, OpenAI-compatible) | *Who grades it?* |
+| `metrics.enabled` | the rubrics to run (relevance, faithfulness, hallucination, coherence, toxicity, prompt-injection) | *What am I scoring for?* |
+| `alerts.thresholds` | the pass/fail bar per metric that makes the run exit non-zero | *When does it fail?* |
+
+```yaml
+scope:
+  service: ${DT_EVAL_SERVICE}   # which agent's spans — you set this below
+  since: 2h
+  sampling: { strategy: latest, count: 25 }
+metrics:
+  enabled: [relevance, faithfulness, hallucination, coherence, toxicity, prompt-injection]
+alerts:
+  thresholds:
+    hallucination: 0            # fail if ANY hallucination is detected
+    relevance: 0.6              # fail below 0.6
+```
+
+**Author it in two edits.** Point `scope` at *your* agent by setting
+`DT_EVAL_SERVICE` (it fills `scope.service` at render time — discover it, don't
+guess; defaults to `sre-agent`), and set the gate by tightening a
+`alerts.thresholds` line — e.g. `relevance: 0.8` to demand strongly on-topic
+answers. Those two edits *are* the evaluation; the run below just executes it.
 
 **Credentials** live in `evals/.env`: a **dedicated** Dynatrace `dt0c01` token
-(`storage:spans:read` + `storage:events:write`), your `…apps.dynatrace.com` URL, a
-judge key (a DeepSeek key works), and `DT_EVAL_SERVICE` set to the agent's
-`service.name` (defaults to `sre-agent`). For the exact scopes and where each token
-is generated, see
+(`storage:spans:read` + `storage:events:write`), your `…apps.dynatrace.com` URL, and
+a judge key (a DeepSeek key works). For the exact scopes and where each token is
+generated, see
 **[Start the benchmark → Create the required tokens](start-benchmark.md#4-create-the-required-tokens)**.
 
 ```bash
 cd evals/dt-evals
-./run-dt-eval.sh          # renders the config, then runs validate + run
+export DT_EVAL_SERVICE="sre-agent"   # the service.name you discovered
+./run-dt-eval.sh                     # renders the config, then runs validate + run
 ```
 
 The run exits non-zero on a threshold breach — a ready-made CI gate. Read the
@@ -184,7 +220,7 @@ objectively, even with no judge model.
 
 ```bash
 cd evals
-python phoenix/run_diagnosis_eval.py        # bundled golden + confab diagnoses
+uv run python phoenix/run_diagnosis_eval.py        # bundled golden + confab diagnoses
 ```
 
 It prints a PASS/FAIL per diagnosis and writes
@@ -192,10 +228,29 @@ It prints a PASS/FAIL per diagnosis and writes
 also run an LLM root-cause grader, or `--from-phoenix` to grade the agent's *live*
 diagnosis spans and annotate them back onto the traces.
 
-### Also in Dynatrace (dt-evals — optional)
+### Author a custom evaluator in Dynatrace (dt-evals — optional)
 
-For teams using Part B, each answer key also renders into a dt-evals custom
-evaluator. Register the one for the scenario you ran, then grade its spans:
+For teams using Part B, the sharpest form of authoring is to **write your own
+evaluator** — a rubric that encodes exactly what a correct diagnosis of *one*
+scenario must say. Each answer key is compiled into one, so you read it, register
+it, enable it, and run it.
+
+**1. Read the rubric.** Open
+[`evals/dt-evals/evaluators/diagnosis-01-crashloopbackoff.md`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/evaluators/diagnosis-01-crashloopbackoff.md).
+Its **Judge prompt** section *is* the evaluator — a binary grader (1 = correct,
+0 = incorrect) with three clauses: it must **identify the root cause**, **cite ≥ 3
+required signals** (`reason: CrashLoopBackOff`, the `Back-off restarting failed
+container` event, a non-zero `exitCode`, the fatal log line), and make **none of
+the must-not-claim** cross-channel confabulations (image-pull, OOM, probe,
+node/quota). That *required-signals + must-not-claim* shape is the pattern for
+authoring any objective grader. (Generated from the answer key — regenerate with
+`uv run python dt-evals/gen_diagnosis_evaluators.py`, don't hand-edit.)
+
+**2. Register it, enable it, run it.** Register writes your rubric into the local
+custom-evaluator store; enabling it means uncommenting its line under
+`metrics.enabled` (and the matching `alerts.thresholds`) in
+[`scenario-diagnosis.dt-eval.yaml`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/scenario-diagnosis.dt-eval.yaml);
+then run scoped to the one scenario you diagnosed:
 
 ```bash
 cd evals/dt-evals
@@ -208,8 +263,9 @@ cd evals/dt-evals
 Swap in the evaluator name for the scenario you ran —
 `diagnosis-01-crashloopbackoff`, `diagnosis-02-imagepullbackoff`,
 `diagnosis-03-oomkilled`, or `diagnosis-12-intermittent-5xx` (one per
-`evaluators/*.md`). `./run-dt-eval.sh evaluators add` is a passthrough to the
-pinned `dt-evals` CLI, so there is nothing to export first.
+`evaluators/*.md`; register and enable whichever you're grading).
+`./run-dt-eval.sh evaluators add` is a passthrough to the pinned `dt-evals` CLI,
+so there is nothing to export first.
 
 Correct diagnoses score 1, misses score 0 — a per-scenario pass/fail bizevent next
 to the trace. Details:
@@ -231,15 +287,14 @@ to the trace. Details:
 
 ## What you achieved (acceptance)
 
-- A Phoenix eval run produces labelled scores you can inspect in the UI (or the
-  CSV) — even offline against the bundled dataset. This is the workshop's path to
-  creating an evaluation.
-- *(Optional)* A dt-evals run lands the same kind of scores **inside Dynatrace** as
-  queryable bizevents, with a CI-friendly pass/fail gate — for teams that want them
-  there.
-- A diagnosis-grading run (Part C) scores an SRE-agent diagnosis against a
-  scenario answer key — PASS/FAIL against registered ground truth, offline or in
-  Dynatrace.
+- You **created an evaluation in the Phoenix UI** (dataset → evaluator → judge)
+  and read its labelled scores — no code. This is the workshop's recommended path.
+- *(Optional)* You saw how the same evaluation is **authored as a dt-evals config**
+  — set its scope and alert gate, run it, and the scores land **inside Dynatrace**
+  as queryable bizevents with a CI-friendly pass/fail gate.
+- *(Optional)* You can **author a custom evaluator** (Part C) — a required-signals
+  + must-not-claim rubric — register and enable it, and grade an SRE-agent
+  diagnosis PASS/FAIL against the scenario answer key, offline or in Dynatrace.
 
 Next: **[07 — Optimize](07-optimize.md)** — now that you can *measure* cost and
 quality, go cut the waste.
