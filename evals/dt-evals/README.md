@@ -36,7 +36,7 @@ npx -y "$DT_EVALS_PKG" evaluators add                 # paste evaluators/diagnos
 
 dt-evals is trace-sourced, so run this scoped to **one** scenario's diagnosis at a
 time (inject → diagnose → grade). Correct diagnoses score 1, misses 0. Regenerate
-the rubrics after an answer key changes: `python gen_diagnosis_evaluators.py`.
+the rubrics after an answer key changes: `uv run python gen_diagnosis_evaluators.py`.
 
 ## Prerequisites
 

@@ -2,7 +2,7 @@
 
 > Generated from `evals/ground-truth/02-imagepullbackoff.json`
 > (answer key: `scenarios/02-imagepullbackoff/expected-diagnosis.md`). Do not hand-edit — run
-> `python dt-evals/gen_diagnosis_evaluators.py` after the answer key changes.
+> `uv run python dt-evals/gen_diagnosis_evaluators.py` after the answer key changes.
 
 Register once (interactive — paste the prompt below when asked):
 
