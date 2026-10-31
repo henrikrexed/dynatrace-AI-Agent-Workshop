@@ -89,6 +89,14 @@ if [ -n "${DEEPSEEK_KEY}" ]; then
     --from-literal=DEEPSEEK_API_KEY="${DEEPSEEK_KEY}" \
     --dry-run=client -o yaml | apply_secret
   ok "secret/kagent-deepseek (kagent) upserted"
+  # Phoenix preconfigures DeepSeek as its playground/eval provider (ISI-6959) so
+  # attendees never hand-enter a key. Phoenix runs in its own namespace, so it
+  # needs its own copy of the key — dedicated secret for clean ownership, reusing
+  # the SAME Codespace DEEPSEEK_API_KEY/LLM_API_KEY (no new attendee secret).
+  kubectl create secret generic phoenix-deepseek -n phoenix \
+    --from-literal=DEEPSEEK_API_KEY="${DEEPSEEK_KEY}" \
+    --dry-run=client -o yaml | apply_secret
+  ok "secret/phoenix-deepseek (phoenix) upserted"
 fi
 # OpenAI alternative: secret/kagent-openai, key OPENAI_API_KEY.
 if [ -n "${OPENAI_API_KEY:-}" ]; then
