@@ -30,9 +30,17 @@ must-not-claim. Register the one for the scenario you ran, then grade its spans:
 
 ```bash
 cd evals/dt-evals
-npx -y "$DT_EVALS_PKG" evaluators add                 # paste evaluators/diagnosis-<id>.md
-./run-dt-eval.sh --config scenario-diagnosis.dt-eval.yaml --metric diagnosis-<id>
+# Register once — paste the judge prompt from evaluators/diagnosis-01-crashloopbackoff.md
+./run-dt-eval.sh evaluators add
+# Then grade the diagnosis spans for that scenario:
+./run-dt-eval.sh --config scenario-diagnosis.dt-eval.yaml --metric diagnosis-01-crashloopbackoff
 ```
+
+Use the concrete evaluator name for the scenario you ran —
+`diagnosis-01-crashloopbackoff`, `diagnosis-02-imagepullbackoff`,
+`diagnosis-03-oomkilled`, or `diagnosis-12-intermittent-5xx` (one per
+`evaluators/*.md`). `./run-dt-eval.sh evaluators add` passes straight through to
+the pinned CLI (`dt-evals evaluators add`), so there is nothing to export.
 
 dt-evals is trace-sourced, so run this scoped to **one** scenario's diagnosis at a
 time (inject → diagnose → grade). Correct diagnoses score 1, misses 0. Regenerate
