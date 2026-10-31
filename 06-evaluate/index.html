@@ -859,6 +859,17 @@ classifiers — <strong>hallucination</strong> (is the answer grounded in its co
 <p>It prints a per-metric summary, writes <code>phoenix/out/phoenix_eval_results.csv</code>,
 and (with <code>--from-phoenix</code>) annotates the originating spans so the labels show up
 on the traces in the UI. Details: <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/phoenix/README.md"><code>evals/phoenix/README.md</code></a>.</p>
+<div class="admonition note">
+<p class="admonition-title"><code>--from-phoenix</code> needs message content on the spans</p>
+<p>The live path maps prompt/response content out of your spans in every common
+shape our agents emit — OTel GenAI semconv (<code>gen_ai.input.messages</code>, indexed
+<code>gen_ai.prompt.N.content</code> / <code>gen_ai.completion.N.content</code>, or <code>gen_ai.*</code>
+log-events) as well as OpenInference (<code>input.value</code> / <code>output.value</code>). If it
+still finds no content, it now prints exactly which <code>attributes.*</code> were
+present so you can see what to add. The usual cause is instrumentation that
+<strong>drops message bodies by default</strong> — enable content capture and re-drive the
+agents (see the README). The bundled dataset path above always works offline.</p>
+</div>
 <p>This is <em>exploratory</em>: fast, visual, good for discovering failure modes. For a
 gate you can run in CI, use dt-evals.</p>
 <hr />
@@ -986,7 +997,7 @@ token/cost/latency drive <strong><a href="../07-optimize/">07 — Optimize</a></
 <tbody>
 <tr>
 <td><strong>SRE agent</strong></td>
-<td>Did it correctly identify the unhealthy pod? Did it call the right k8s tool (not guess)? Was the diagnosis grounded in real tool output (no hallucinated pod names)?</td>
+<td>Did it correctly identify the unhealthy pod? Did it call the right k8s/Dynatrace tool (not guess)? Was the diagnosis grounded in real tool output (no hallucinated pod names)?</td>
 </tr>
 <tr>
 <td><strong>BMAD crew</strong></td>
