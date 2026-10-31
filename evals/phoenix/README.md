@@ -86,6 +86,25 @@ attributes"*, it now prints the `attributes.*` columns your spans actually have 
 add any missing key to `INPUT_KEYS` / `OUTPUT_KEYS` in `span_mapping.py`. The
 offline test `tests/test_span_mapping.py` covers every supported form.
 
+### Which spans get pulled — `span_kind == 'LLM'`
+
+Project `PHOENIX_PROJECT` (default: `default`) holds **all** workshop traffic —
+the otel-demo app alone floods it with microservice spans (`http`/`db`/`rpc`/…).
+So `--from-phoenix` does **not** grab the newest-N of everything (which buried the
+sparse agent `call_llm` spans — ISI-6962). `span_mapping.fetch_llm_spans()` filters
+**server-side** to `span_kind == 'LLM'` *before* the limit: the collector-gateway
+OTTL (ISI-6960) stamps `openinference.span.kind=LLM` on the `call_llm` span, which
+Phoenix exposes as the queryable `span_kind` field. If that filter matches nothing
+(an older capture, or the gateway isn't stamping it yet) the call falls back to the
+unfiltered pull and the run prints which path it took, so a crowded result is never
+mistaken for a clean one.
+
+This is proven end-to-end on a real Phoenix server (no cluster/judge key needed)
+by `verify_from_phoenix.py`, run in CI by
+[`.github/workflows/phoenix-from-phoenix.yml`](../../.github/workflows/phoenix-from-phoenix.yml)
+(ISI-6966) — it floods a live Phoenix with infra spans + sparse LLM spans and
+asserts the old newest-N pull maps **zero** while the filter returns the LLM spans.
+
 ## Versions
 
 Pinned in `evals/pyproject.toml` (`arize-phoenix-evals`, `arize-phoenix-client`).
