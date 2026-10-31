@@ -82,10 +82,17 @@ def load_from_phoenix(fixtures) -> list[dict]:
     endpoint = os.environ.get("PHOENIX_ENDPOINT", "http://localhost:6006")
     project = os.environ.get("PHOENIX_PROJECT", "default")
     client = Client(base_url=endpoint)
-    spans = client.spans.get_spans_dataframe(project_identifier=project, limit=500)
+    # Filter to LLM spans server-side so the agent diagnosis spans aren't crowded
+    # out of the limit window by otel-demo infra traffic (ISI-6962).
+    spans, filtered = span_mapping.fetch_llm_spans(client, project, limit=500)
     if spans is None or spans.empty:
         sys.exit(f"No spans in Phoenix project '{project}' at {endpoint}. "
                  "Run a scenario diagnosis first (scenarios/run.sh inject <id>).")
+    if filtered:
+        print(f"Filtered to LLM spans server-side ({span_mapping.LLM_SPAN_FILTER}).")
+    else:
+        print("(No span_kind=='LLM' spans matched — pulling unfiltered; the "
+              "diagnosis spans may be crowded out by non-LLM traffic.)")
 
     rows = []
     for span_id, row in spans.iterrows():

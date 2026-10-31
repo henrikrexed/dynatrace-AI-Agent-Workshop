@@ -108,12 +108,19 @@ def load_from_phoenix() -> pd.DataFrame:
     endpoint = os.environ.get("PHOENIX_ENDPOINT", "http://localhost:6006")
     project = os.environ.get("PHOENIX_PROJECT", "default")
     client = Client(base_url=endpoint)
-    spans = client.spans.get_spans_dataframe(project_identifier=project, limit=200)
+    # Filter to LLM spans server-side so the sparse agent call_llm spans aren't
+    # crowded out of the limit window by otel-demo infra traffic (ISI-6962).
+    spans, filtered = span_mapping.fetch_llm_spans(client, project, limit=200)
     if spans is None or spans.empty:
         sys.exit(
             f"No spans in Phoenix project '{project}' at {endpoint}. "
             "Generate some agent traffic first, then retry."
         )
+    if filtered:
+        print(f"Filtered to LLM spans server-side ({span_mapping.LLM_SPAN_FILTER}).")
+    else:
+        print("(No span_kind=='LLM' spans matched — pulling unfiltered; results "
+              "may be crowded out by non-LLM traffic. See span_mapping.py.)")
 
     records = []
     for span_id, row in spans.iterrows():
