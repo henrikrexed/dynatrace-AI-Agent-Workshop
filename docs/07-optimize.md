@@ -26,25 +26,238 @@ Change one thing, re-run the eval suite, and keep the change **only if quality
 holds and cost dropped**. Never optimize on cost alone — that's how you ship a
 cheap agent that gives wrong answers.
 
-!!! tip "Two ready-made surfaces — deploy them first"
-    This module ships a Dynatrace **dashboard** and **notebook** that compute every
-    signal below from your crew's `gen_ai.*` spans. Deploy them, then read the rest
-    of this page with your own data on screen:
+!!! tip "Three ready-made surfaces — deploy them first"
+    This module ships a Dynatrace **read-the-run notebook**, a **dashboard**, and a
+    **before/after notebook** that compute every signal below from your crew's
+    `gen_ai.*` spans. Deploy them, then read the rest of this page with your own
+    data on screen:
 
     ```bash
     dtctl config use-context <your-tenant>
     cd cluster/dynatrace/optimization
+    dtctl create notebook -f ai-agent-workflow-steps.notebook.yaml
     dtctl apply -f ai-agent-optimization.dashboard.yaml
     dtctl create notebook -f ai-agent-optimization-before-after.notebook.yaml
     ```
 
+    - **Notebook — *Read an AI Agent Run*** (`ai-agent-workflow-steps`): walks one
+      run from the crew list down to the per-hop token bill — the understand-first
+      companion to the section below. Start here.
     - **Dashboard** — *AI Agent Optimization*: spend ranking, input:output ratio,
       tools-actually-used, loop detection, token-trend.
-    - **Notebook** — *AI Agent Optimization — before/after*: the observe → find →
+    - **Notebook — *AI Agent Optimization — before/after***: the observe → find →
       change → re-measure → keep/revert walkthrough, one runnable DQL cell per step.
 
-    All four artifacts (dashboard, notebook, guardian, workflow — §4) are
-    dtctl-ready YAML in [`cluster/dynatrace/optimization/`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/tree/main/cluster/dynatrace/optimization) with a README.
+    All five artifacts (read-the-run notebook, dashboard, before/after notebook,
+    guardian, workflow — §4) are dtctl-ready YAML in
+    [`cluster/dynatrace/optimization/`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/tree/main/cluster/dynatrace/optimization) with a README.
+
+## Read the workflow before you cut it
+
+Before you *cut* an agent's cost you have to *read* what it is doing. The ranking
+and cuts below act on numbers; this section is how you earn the right to trust
+those numbers — by walking **one real run** from the outside in, zooming one level
+at a time:
+
+```mermaid
+flowchart TD
+    s1["1 · Who is in the crew"] --> s2["2 · What operations an agent performs"]
+    s2 --> s3["3 · Anatomy of one task"]
+    s3 --> s4["4 · The A2A hand-offs"]
+    s4 --> s5["5 · The reasoning loop"]
+    s5 --> s6["6 · The tool-call sequence"]
+    s6 --> s7["7 · Token accumulation across the run"]
+```
+
+!!! tip "Run these in your own tenant"
+    All seven queries below are the cells of the **read-the-run notebook**,
+    [`ai-agent-workflow-steps.notebook.yaml`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/tree/main/cluster/dynatrace/optimization/ai-agent-workflow-steps.notebook.yaml)
+    (deploy it from the callout above). Each step below names the matching notebook
+    section so you can run it against your own crew and page through the run live.
+
+First, the vocabulary these queries use — correct it to whatever *your* crew
+emits:
+
+- An **LLM call** (the agent *reasoning*) is a span with
+  `gen_ai.operation.name == "generate_content"`. Key on that operation, never on a
+  framework span name — some SDK layers wrap each call in an extra span, and the
+  operation counts each LLM call exactly once.
+- A **tool call** (the agent *acting*) is `gen_ai.operation.name == "execute_tool"`,
+  with the tool name in `gen_ai.tool.name`. Drop `gen_ai.tool.name == "(merged
+  tools)"` — a Dynatrace span-merge artifact, not a real tool.
+- **Tokens** live on `gen_ai.usage.input_tokens` / `gen_ai.usage.output_tokens`
+  (carried on the `generate_content` spans).
+- One agent's **unit of work** is `gen_ai.task.id` (it stays inside a single
+  service). A full **cross-agent run** is `trace.id` — one trace spans the whole
+  crew.
+- Order events by `start_time` (`timestamp` is null on these spans).
+
+### 1 · Who is in the crew
+
+**What you're seeing:** your agents. Every service in the `kagent` namespace that
+actually makes an LLM call is an agent (the `llmCalls > 0` filter drops the
+`kagent-controller` plumbing). `llmCalls` is how often it reasoned; `toolCalls`
+how often it acted.
+
+```
+fetch spans
+| filter service.namespace == "kagent"
+| summarize spans = count(),
+    llmCalls = countIf(gen_ai.operation.name == "generate_content"),
+    toolCalls = countIf(gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"),
+    by:{agent = service.name}
+| filter llmCalls > 0
+| sort llmCalls desc
+```
+
+*Notebook: section 1.*
+
+### 2 · What operations an agent performs
+
+**What you're seeing:** the vocabulary. Everything an agent emits falls into a
+handful of activities — it **reasons** (`generate_content`), **acts**
+(`execute_tool`), and **talks to other agents** (`a2a.*` + `invoke_agent`).
+Everything else is the `Other` bucket you can ignore while reading the run.
+
+```
+fetch spans
+| filter service.namespace == "kagent"
+| fieldsAdd activity = if(gen_ai.operation.name == "generate_content", "LLM call (generate_content)",
+    else: if(gen_ai.operation.name == "execute_tool", "Tool call (execute_tool)",
+    else: if(gen_ai.operation.name == "invoke_agent", "Agent invocation (invoke_agent)",
+    else: if(startsWith(span.name, "a2a."), "A2A messaging",
+    else: "Other (HTTP / framework)"))))
+| summarize spans = count(), by:{activity}
+| sort spans desc
+```
+
+*Notebook: section 2.*
+
+### 3 · Anatomy of one task
+
+**What you're seeing:** one run, step by step. The sub-query picks the task with
+the **most `generate_content` hops** (the busiest reasoning loop — the most
+interesting example) and joins its spans back on `gen_ai.task.id`. Read
+top-to-bottom: an LLM call, then the tools it decided to run, then the next LLM
+call. `kagent__NS__<agent>` tools are hand-offs to sub-agents (see step 4).
+
+```
+fetch spans
+| filter service.namespace == "kagent"
+| join [
+    fetch spans
+    | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+    | summarize hops = count(), by:{gen_ai.task.id}
+    | sort hops desc, gen_ai.task.id asc
+    | limit 1
+  ], on:{gen_ai.task.id}, kind:inner, fields:{}
+| filter gen_ai.operation.name == "generate_content" or gen_ai.operation.name == "execute_tool"
+| filter gen_ai.tool.name != "(merged tools)" or isNull(gen_ai.tool.name)
+| fieldsAdd durationMs = duration / 1000000
+| fields start_time, agent = service.name, step = span.name, operation = gen_ai.operation.name, durationMs
+| sort start_time asc
+```
+
+*Notebook: section 3.*
+
+### 4 · The A2A hand-offs
+
+**What you're seeing:** the workflow graph. In this crew an agent delegates to
+another by calling it **as a tool** named `kagent__NS__<agent>`; stripping that
+prefix gives the edge `fromAgent → toAgent`. Hand-offs cross `service.name`, so
+they are correlated by `trace.id`, not by a single `gen_ai.task.id`. The
+orchestrator is usually the hub that fans work out to the specialists.
+
+```
+fetch spans
+| filter service.namespace == "kagent" and gen_ai.operation.name == "execute_tool"
+| filter startsWith(gen_ai.tool.name, "kagent__")
+| fieldsAdd callee = replaceString(gen_ai.tool.name, "kagent__NS__", "")
+| summarize handoffs = count(), by:{fromAgent = service.name, toAgent = callee}
+| sort handoffs desc
+```
+
+*Notebook: section 4.*
+
+### 5 · The reasoning loop
+
+**What you're seeing:** where a loop re-reads context. Same busiest task as step 3,
+but only its `generate_content` hops in order. Watch `inputTokens` climb hop after
+hop while `outputTokens` stays small: every hop re-sends the whole growing
+conversation back to the model. A flat line means a tight agent; a staircase means
+a context that never gets trimmed. That growth is exactly the chatty-workflow lever
+in [§2c](#c-fix-chatty-workflows) below.
+
+```
+fetch spans
+| filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+| join [
+    fetch spans
+    | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+    | summarize hops = count(), by:{gen_ai.task.id}
+    | sort hops desc, gen_ai.task.id asc
+    | limit 1
+  ], on:{gen_ai.task.id}, kind:inner, fields:{}
+| fields start_time, agent = service.name, inputTokens = gen_ai.usage.input_tokens, outputTokens = gen_ai.usage.output_tokens
+| sort start_time asc
+```
+
+*Notebook: section 5.*
+
+### 6 · The tool-call sequence
+
+**What you're seeing:** what the agent decided to do. Same busiest task, now only
+its `execute_tool` spans in order. Each row is a decision the model made between
+reasoning hops — a memory lookup, a sub-agent delegation (`kagent__NS__*`), a
+diagnostic call. Compare this list against each agent's *granted* tools: tools
+that never appear here are the never-called overhead you drop in
+[§2a](#a-remove-tools-the-agent-never-uses) below.
+
+```
+fetch spans
+| filter service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
+| join [
+    fetch spans
+    | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+    | summarize hops = count(), by:{gen_ai.task.id}
+    | sort hops desc, gen_ai.task.id asc
+    | limit 1
+  ], on:{gen_ai.task.id}, kind:inner, fields:{}
+| fieldsAdd durationMs = duration / 1000000
+| fields start_time, agent = service.name, tool = gen_ai.tool.name, durationMs
+| sort start_time asc
+```
+
+*Notebook: section 6.*
+
+### 7 · Token accumulation across the run
+
+**What you're seeing:** the bill, built one hop at a time. Same busiest task, every
+`generate_content` hop with its `inputTokens`, `outputTokens`, and `hopCost` (the
+two added). Sum the `inputTokens` column and you get the run's input bill — on the
+reference tenant that was ~182k input vs ~14k output across 10 hops (≈13:1), with
+the last hop costing several times the first purely because the context grew. That
+is why trimming the loop (step 5) beats trimming almost anything else.
+
+```
+fetch spans
+| filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+| join [
+    fetch spans
+    | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+    | summarize hops = count(), by:{gen_ai.task.id}
+    | sort hops desc, gen_ai.task.id asc
+    | limit 1
+  ], on:{gen_ai.task.id}, kind:inner, fields:{}
+| fieldsAdd hopCost = gen_ai.usage.input_tokens + gen_ai.usage.output_tokens
+| fields start_time, inputTokens = gen_ai.usage.input_tokens, outputTokens = gen_ai.usage.output_tokens, hopCost
+| sort start_time asc
+```
+
+*Notebook: section 7.*
+
+With the run read end-to-end, you now know *which* agent to rank first and *why*
+its tokens are high. That is the ranking the rest of this page acts on.
 
 ## 1. Rank your agents by spend
 
