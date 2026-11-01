@@ -64,8 +64,20 @@ start with **hallucination** (is the answer grounded in the tool output it was
 given?) or **relevance** (does it actually answer the question?).
 
 1. **Pick the traces.** Open your project's **Traces** table and select the
-   SRE-agent runs you want to grade (filter to the `agent.run` / LLM spans so each
-   example carries a clean question → answer pair).
+   SRE-agent runs you want to grade. Filter to the LLM spans so each example
+   carries a clean question → answer pair — paste this into the Traces filter bar:
+
+    ```text
+    span_kind == 'LLM' and attributes['service.name'] == '${WORKSHOP_PREFIX}-sre-agent'
+    ```
+
+    `${WORKSHOP_PREFIX}` is the prefix you set at Codespace create (`echo
+    $WORKSHOP_PREFIX`); on the shared workshop tenant it is what makes the SRE
+    agent's spans arrive as `${WORKSHOP_PREFIX}-sre-agent`. Phoenix itself is
+    per-attendee (local), so the `span_kind == 'LLM'` clause is the one that
+    matters most here — it drops the tool/chain spans and leaves clean
+    question → answer pairs — but keeping the service-name clause makes the same
+    filter copy-paste-identical to the Dynatrace queries later in this module.
 2. **Capture them as a dataset.** Use **Add to Dataset** to save the selected
    spans as a dataset — each example keeps the span's **Input** (the question) and
    **Output** (the agent's answer). This is the set the judge will score.
@@ -178,7 +190,9 @@ generated, see
 
 ```bash
 cd evals/dt-evals
-export DT_EVAL_SERVICE="sre-agent"   # the service.name you discovered
+# DT_EVAL_SERVICE defaults to ${WORKSHOP_PREFIX}-sre-agent when WORKSHOP_PREFIX is
+# set (the shared-tenant prefix from Codespace create) — export it only to override:
+# export DT_EVAL_SERVICE="${WORKSHOP_PREFIX}-sre-agent"
 ./run-dt-eval.sh                     # renders the config, then runs validate + run
 ```
 

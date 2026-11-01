@@ -35,10 +35,21 @@ cheap agent that gives wrong answers.
     ```bash
     dtctl config use-context <your-tenant>
     cd cluster/dynatrace/optimization
-    dtctl create notebook -f ai-agent-workflow-steps.notebook.yaml
-    dtctl apply -f ai-agent-optimization.dashboard.yaml
-    dtctl create notebook -f ai-agent-optimization-before-after.notebook.yaml
+    : "${WORKSHOP_PREFIX:?set your attendee prefix first}"   # shared-tenant scope
+    # The assets filter on workshop.attendee == "${WORKSHOP_PREFIX}" — render it in
+    # before deploying (scoped envsubst leaves the files' other $refs untouched):
+    mkdir -p .rendered
+    for f in ai-agent-workflow-steps.notebook.yaml ai-agent-optimization.dashboard.yaml \
+             ai-agent-optimization-before-after.notebook.yaml; do
+      envsubst '${WORKSHOP_PREFIX}' < "$f" > ".rendered/$f"
+    done
+    dtctl create notebook -f .rendered/ai-agent-workflow-steps.notebook.yaml
+    dtctl apply       -f .rendered/ai-agent-optimization.dashboard.yaml
+    dtctl create notebook -f .rendered/ai-agent-optimization-before-after.notebook.yaml
     ```
+
+    See [`cluster/dynatrace/optimization/README.md`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/dynatrace/optimization/README.md)
+    for the guardian + workflow (they render the same way).
 
     - **Notebook — *Read an AI Agent Run*** (`ai-agent-workflow-steps`): walks one
       run from the crew list down to the per-hop token bill — the understand-first
@@ -92,6 +103,15 @@ emits:
   crew.
 - Order events by `start_time` (`timestamp` is null on these spans).
 
+!!! tip "Shared tenant — scope every query to your prefix"
+    The workshop shares one Dynatrace tenant across all attendees, so every query
+    below is scoped with `workshop.attendee == "${WORKSHOP_PREFIX}"` (the collector
+    stamps this attribute on all your telemetry) and the SRE agent arrives as
+    `service.name == "${WORKSHOP_PREFIX}-sre-agent"`. When you paste a snippet into a
+    Dynatrace Notebook, **replace `${WORKSHOP_PREFIX}` with your own prefix** — the
+    value you set at Codespace create (`echo $WORKSHOP_PREFIX`). Without it you would
+    see the whole class's data mixed together.
+
 ### 1 · Who is in the crew
 
 **What you're seeing:** your agents. Every service in the `kagent` namespace that
@@ -101,7 +121,7 @@ how often it acted.
 
 ```
 fetch spans
-| filter service.namespace == "kagent"
+| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
 | summarize spans = count(),
     llmCalls = countIf(gen_ai.operation.name == "generate_content"),
     toolCalls = countIf(gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"),
@@ -121,7 +141,7 @@ Everything else is the `Other` bucket you can ignore while reading the run.
 
 ```
 fetch spans
-| filter service.namespace == "kagent"
+| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
 | fieldsAdd activity = if(gen_ai.operation.name == "generate_content", "LLM call (generate_content)",
     else: if(gen_ai.operation.name == "execute_tool", "Tool call (execute_tool)",
     else: if(gen_ai.operation.name == "invoke_agent", "Agent invocation (invoke_agent)",
@@ -143,10 +163,10 @@ call. `kagent__NS__<agent>` tools are hand-offs to sub-agents (see step 4).
 
 ```
 fetch spans
-| filter service.namespace == "kagent"
+| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
 | join [
     fetch spans
-    | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+    | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
     | summarize hops = count(), by:{gen_ai.task.id}
     | sort hops desc, gen_ai.task.id asc
     | limit 1
@@ -170,7 +190,7 @@ orchestrator is usually the hub that fans work out to the specialists.
 
 ```
 fetch spans
-| filter service.namespace == "kagent" and gen_ai.operation.name == "execute_tool"
+| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "execute_tool"
 | filter startsWith(gen_ai.tool.name, "kagent__")
 | fieldsAdd callee = replaceString(gen_ai.tool.name, "kagent__NS__", "")
 | summarize handoffs = count(), by:{fromAgent = service.name, toAgent = callee}
@@ -191,7 +211,7 @@ fetch spans
     3. Confirm *any* `kagent__` spans exist at all:
        ```
        fetch spans
-       | filter service.namespace == "kagent" and startsWith(gen_ai.tool.name, "kagent__")
+       | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and startsWith(gen_ai.tool.name, "kagent__")
        | summarize count(), by:{gen_ai.tool.name}
        ```
        No rows means no crew hand-offs have happened yet.
@@ -209,10 +229,10 @@ in [§2c](#c-fix-chatty-workflows) below.
 
 ```
 fetch spans
-| filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
 | join [
     fetch spans
-    | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+    | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
     | summarize hops = count(), by:{gen_ai.task.id}
     | sort hops desc, gen_ai.task.id asc
     | limit 1
@@ -234,10 +254,10 @@ that never appear here are the never-called overhead you drop in
 
 ```
 fetch spans
-| filter service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
+| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
 | join [
     fetch spans
-    | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+    | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
     | summarize hops = count(), by:{gen_ai.task.id}
     | sort hops desc, gen_ai.task.id asc
     | limit 1
@@ -260,10 +280,10 @@ is why trimming the loop (step 5) beats trimming almost anything else.
 
 ```
 fetch spans
-| filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
 | join [
     fetch spans
-    | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+    | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
     | summarize hops = count(), by:{gen_ai.task.id}
     | sort hops desc, gen_ai.task.id asc
     | limit 1
@@ -286,7 +306,7 @@ cut on your priciest agent beats a 50% cut on a rarely-used one.
 
 ```
 fetch spans
-| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
+| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
 | summarize llmCalls = count(),
     inputTokens  = sum(gen_ai.usage.input_tokens),
     outputTokens = sum(gen_ai.usage.output_tokens),
@@ -339,7 +359,7 @@ set:
 
 ```
 fetch spans
-| filter service.namespace == "kagent"
+| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
     and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
 | summarize calls = count(), by:{agent = service.name, tool = gen_ai.tool.name}
 | sort agent asc, calls desc
@@ -391,8 +411,8 @@ data record(tool = "k8s_get_resources"),
      record(tool = "k8s_execute_command")
 | lookup [
     fetch spans
-    | filter service.namespace == "kagent"
-        and service.name == "seta_sre_investigator"
+    | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
+        and service.name == "${WORKSHOP_PREFIX}-sre-agent"
         and gen_ai.operation.name == "execute_tool"
         and gen_ai.tool.name != "(merged tools)"
     | summarize calls = count(), by:{tool = gen_ai.tool.name}
@@ -403,7 +423,7 @@ data record(tool = "k8s_get_resources"),
 | sort calls asc
 ```
 
-The `service.name == "seta_sre_investigator"` filter here is **intentional**:
+The `service.name == "${WORKSHOP_PREFIX}-sre-agent"` filter here is **intentional**:
 coverage is a per-agent question ("which of *this* agent's granted tools did
 *this* agent never call"). To cover another agent, swap the service name and the
 `data record(...)` block for that agent's rows from the lookup file. The
@@ -431,7 +451,7 @@ the hops that don't earn their tokens.
 
 ```
 fetch spans
-| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
+| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
 | summarize llmCalls = count(), inputTokens = sum(gen_ai.usage.input_tokens),
     by:{agent = service.name, task = gen_ai.task.id}
 | filter llmCalls >= 5
@@ -468,7 +488,7 @@ row for the agent you changed and compare it across the two windows:
 
 ```
 fetch spans
-| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
+| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
 | summarize llmCalls = count(),
     avgInputPerCall    = round(avg(gen_ai.usage.input_tokens)),
     medianInputPerCall = round(median(gen_ai.usage.input_tokens)),

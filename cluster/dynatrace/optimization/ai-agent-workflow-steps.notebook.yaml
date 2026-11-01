@@ -11,7 +11,7 @@ content:
     markdown: |-
       # Read an AI agent run — from the outside in
 
-      **ISI-6976 · Phase 5** · Tenant `oat05854.dev.apps.dynatracelabs.com` · data: `gen_ai.*` spans from the kagent crew (`service.namespace == "kagent"`).
+      **ISI-6976 · Phase 5** · Tenant `oat05854.dev.apps.dynatracelabs.com` · data: `gen_ai.*` spans from the kagent crew (`workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"`).
 
       Before you *cut* an agent's cost you have to *read* what it is doing. This notebook walks **one agent run** top-to-bottom, zooming in one level at a time:
 
@@ -44,7 +44,7 @@ content:
           to: now()
         value: |-
           fetch spans
-          | filter service.namespace == "kagent"
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
           | summarize spans = count(),
               llmCalls = countIf(gen_ai.operation.name == "generate_content"),
               toolCalls = countIf(gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"),
@@ -72,7 +72,7 @@ content:
           to: now()
         value: |-
           fetch spans
-          | filter service.namespace == "kagent"
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
           | fieldsAdd activity = if(gen_ai.operation.name == "generate_content", "LLM call (generate_content)",
               else: if(gen_ai.operation.name == "execute_tool", "Tool call (execute_tool)",
               else: if(gen_ai.operation.name == "invoke_agent", "Agent invocation (invoke_agent)",
@@ -101,10 +101,10 @@ content:
           to: now()
         value: |-
           fetch spans
-          | filter service.namespace == "kagent"
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
           | join [
               fetch spans
-              | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+              | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
               | summarize hops = count(), by:{gen_ai.task.id}
               | sort hops desc, gen_ai.task.id asc
               | limit 1
@@ -125,7 +125,7 @@ content:
 
       **Returns nothing?** That's expected unless the **BMAD crew** has run. A2A hand-offs (`kagent__NS__<agent>` tool calls) are only emitted when the **`bmad-orchestrator`** delegates to its specialists — the solo `sre-agent` (the default k8s-only investigation path) calls only `kagent-tool-server` tools and produces **zero** `kagent__` spans by design. To populate this graph, run the BMAD crew (the A2A sample prompt from module 02) and re-run the cell. Two things to check:
       1. **Timeframe** — this cell is hard-coded to `now()-7d`; widen it or re-run after the crew has executed within the window.
-      2. **Any `kagent__` spans at all?** Sanity-check with: `fetch spans | filter service.namespace == "kagent" and startsWith(gen_ai.tool.name, "kagent__") | summarize count(), by:{gen_ai.tool.name}`. No rows here means no crew hand-offs have happened yet.
+      2. **Any `kagent__` spans at all?** Sanity-check with: `fetch spans | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and startsWith(gen_ai.tool.name, "kagent__") | summarize count(), by:{gen_ai.tool.name}`. No rows here means no crew hand-offs have happened yet.
   - drilldownPath: []
     filterSegments: []
     id: a37df4a6-e1b2-40fb-ab78-5e8f04c3db04
@@ -139,7 +139,7 @@ content:
           to: now()
         value: |-
           fetch spans
-          | filter service.namespace == "kagent" and gen_ai.operation.name == "execute_tool"
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "execute_tool"
           | filter startsWith(gen_ai.tool.name, "kagent__")
           | fieldsAdd callee = replaceString(gen_ai.tool.name, "kagent__NS__", "")
           | summarize handoffs = count(), by:{fromAgent = service.name, toAgent = callee}
@@ -165,10 +165,10 @@ content:
           to: now()
         value: |-
           fetch spans
-          | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
           | join [
               fetch spans
-              | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+              | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
               | summarize hops = count(), by:{gen_ai.task.id}
               | sort hops desc, gen_ai.task.id asc
               | limit 1
@@ -196,10 +196,10 @@ content:
           to: now()
         value: |-
           fetch spans
-          | filter service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
           | join [
               fetch spans
-              | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+              | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
               | summarize hops = count(), by:{gen_ai.task.id}
               | sort hops desc, gen_ai.task.id asc
               | limit 1
@@ -228,10 +228,10 @@ content:
           to: now()
         value: |-
           fetch spans
-          | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
           | join [
               fetch spans
-              | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+              | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
               | summarize hops = count(), by:{gen_ai.task.id}
               | sort hops desc, gen_ai.task.id asc
               | limit 1
