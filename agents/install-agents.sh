@@ -70,8 +70,14 @@ export GH_PAT="${GH_PAT:-${GITHUB_TOKEN:-}}"
 
 [ -n "${GH_PAT}" ]        || warn "GH_PAT unset — BMAD crew installs but GitHub tools will not authenticate."
 
+# WORKSHOP_LLM_BASE_URL — the agent LLM endpoint (DeepSeek by default, or the
+# per-attendee LiteLLM-proxy endpoint when a room password dispensed one; ISI-6996).
+# Exported by cluster/versions.env (sourced above); injected into the ModelConfig's
+# openAI.baseUrl via envsubst so NO raw endpoint/key is committed.
+export WORKSHOP_LLM_BASE_URL
+
 # Only these vars are substituted; every other $ in the manifests is left intact.
-SUBST_VARS='${GITHUB_MCP_IMAGE} ${GH_PAT} ${WORKSHOP_PREFIX}'
+SUBST_VARS='${GITHUB_MCP_IMAGE} ${GH_PAT} ${WORKSHOP_PREFIX} ${WORKSHOP_LLM_BASE_URL}'
 
 # --- 1/3  MCP layer: shared ModelConfig + GitHub tool server -----------------
 # Applied file-by-file (NOT via kustomize) so envsubst can inject the ${...}

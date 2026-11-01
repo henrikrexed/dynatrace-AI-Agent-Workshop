@@ -55,8 +55,8 @@
       "description": "Phase 4 dt-evals token (dt0c01). Scopes: storage:spans:read + storage:events:write.",
       "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
     },
-    "DEEPSEEK_API_KEY": {
-      "description": "Model key powering the kagent agents (DeepSeek by default). Fallback var: LLM_API_KEY.",
+    "WORKSHOP_ROOM_PASSWORD": {
+      "description": "The workshop room password. The ONLY model credential you supply — it is exchanged at startup for a per-attendee model-proxy endpoint + key. No DeepSeek/OpenAI key needed.",
       "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
     },
     "GH_PAT": {

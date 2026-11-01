@@ -25,6 +25,17 @@ REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 DT_EVALS_PKG="${DT_EVALS_PKG:-$(grep -E '^DT_EVALS_PKG=' "$REPO_ROOT/cluster/versions.env" | cut -d'"' -f2)}"
 DT_EVALS_PKG="${DT_EVALS_PKG:-@dynatrace-oss/dt-evals@alpha}"
 
+# Resolve the judge base URL. Sourcing versions.env gives WORKSHOP_LLM_BASE_URL* and
+# (at its tail) any .workshop-llm.env proxy override written by the room-password
+# dispenser (ISI-6996) — so the judge routes through the LiteLLM proxy when dispensed,
+# or hits DeepSeek directly otherwise. The dt-eval.yaml judge baseUrl must NOT carry
+# /v1 (the validate probe hardcodes ${baseUrl}/v1/chat/completions → a /v1 here doubles it).
+# shellcheck disable=SC1091
+[ -f "$REPO_ROOT/cluster/versions.env" ] && . "$REPO_ROOT/cluster/versions.env"
+WORKSHOP_LLM_BASE_URL_NOV1="${WORKSHOP_LLM_BASE_URL_NOV1:-${WORKSHOP_LLM_BASE_URL:-https://api.deepseek.com/v1}}"
+WORKSHOP_LLM_BASE_URL_NOV1="${WORKSHOP_LLM_BASE_URL_NOV1%/v1}"
+export WORKSHOP_LLM_BASE_URL_NOV1
+
 # `evaluators` is a LOCAL management command — it writes custom evaluator
 # definitions to ~/.config/dt-eval/custom-prompts.json and needs no Dynatrace
 # token and no rendered config. Pass it straight through to the pinned CLI so
@@ -106,7 +117,7 @@ fi
 export OPENAI_API_KEY DYNATRACE_API_TOKEN DT_ENVIRONMENT_URL DT_EVAL_SERVICE
 
 echo "Rendering $RENDERED (service=$DT_EVAL_SERVICE, env=$DT_ENVIRONMENT_URL)"
-envsubst '${DT_ENVIRONMENT_URL} ${DYNATRACE_API_TOKEN} ${OPENAI_API_KEY} ${DT_EVAL_SERVICE}' \
+envsubst '${DT_ENVIRONMENT_URL} ${DYNATRACE_API_TOKEN} ${OPENAI_API_KEY} ${DT_EVAL_SERVICE} ${WORKSHOP_LLM_BASE_URL_NOV1}' \
   < "$TEMPLATE" > "$RENDERED"
 
 echo "==> dt-evals validate"

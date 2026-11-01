@@ -66,12 +66,14 @@ spec:
             # DeepSeek is the obvious (only) choice. Case-insensitive, CSV.
             - name: PHOENIX_ALLOWED_PROVIDERS
               value: "DEEPSEEK"
-            # Base URL kept in lockstep with cluster/versions.env:WORKSHOP_LLM_BASE_URL
-            # (the workshop source of truth for model/base-url). DeepSeek accepts
-            # both with and without the /v1 suffix; Phoenix's built-in default is
-            # https://api.deepseek.com — we pin the /v1 form to match the judge config.
+            # Base URL injected at apply time (envsubst in cluster/install.sh) from
+            # cluster/versions.env:WORKSHOP_LLM_BASE_URL — the workshop source of truth.
+            # DeepSeek direct (https://api.deepseek.com/v1) by default, or the
+            # per-attendee LiteLLM-proxy endpoint when a room password dispensed one
+            # (ISI-6996). The /v1 form matches the dt-evals/judge config; the matching
+            # key lands in secret/phoenix-deepseek (the minted virtual key in the proxy case).
             - name: DEEPSEEK_BASE_URL
-              value: "https://api.deepseek.com/v1"
+              value: "${WORKSHOP_LLM_BASE_URL}"
           ports:
             - { name: ui-http, containerPort: 6006 }
             - { name: otlp-grpc, containerPort: 4317 }
