@@ -1,7 +1,11 @@
 # ── Phase 3 · shared agent LLM (the "brain") ─────────────────────────────────
 # Every workshop agent — the SRE agent and the whole BMAD crew — points at THIS
-# ModelConfig by name (`modelConfig: workshop-llm`). Defining it once here keeps
-# the model/provider choice in a single place.
+# ModelConfig by name (`modelConfig: ${WORKSHOP_PREFIX}-workshop-llm`). Defining
+# it once here keeps the model/provider choice in a single place.
+#
+# The name is templated with ${WORKSHOP_PREFIX} (ISI-6986) so every attendee's
+# objects are uniquely named on the shared tenant — resolved by envsubst in
+# agents/install-agents.sh at apply time; never commit a per-attendee edit.
 #
 # Default: DeepSeek (ISI-6716 — chosen for the workshop's cost-efficiency theme).
 # DeepSeek's API is OpenAI-compatible, so we use kagent's OpenAI provider with the
@@ -19,7 +23,7 @@
 apiVersion: kagent.dev/v1alpha2
 kind: ModelConfig
 metadata:
-  name: workshop-llm
+  name: ${WORKSHOP_PREFIX}-workshop-llm
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: workshop-agents
