@@ -51,6 +51,14 @@ cheap agent that gives wrong answers.
     See [`cluster/dynatrace/optimization/README.md`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/dynatrace/optimization/README.md)
     for the guardian + workflow (they render the same way).
 
+    No `dtctl`? Download the UI-importable JSON and upload it in your own tenant
+    (Dashboards / Notebooks → **Upload**). The JSON still carries the
+    `${WORKSHOP_PREFIX}` placeholder — find/replace it with your attendee prefix
+    before uploading (the dtctl path does the same via `envsubst`):
+
+    - [ai-agent-optimization.dashboard.json](assets/optimization/ai-agent-optimization.dashboard.json)
+    - [ai-agent-optimization-before-after.notebook.json](assets/optimization/ai-agent-optimization-before-after.notebook.json)
+
     - **Notebook — *Read an AI Agent Run*** (`ai-agent-workflow-steps`): walks one
       run from the crew list down to the per-hop token bill — the understand-first
       companion to the section below. Start here.
@@ -548,6 +556,12 @@ guardian daily over the last 24h (schedule ships disabled — flip
 ```bash
 dtctl create workflow -f ai-agent-optimization.workflow.yaml
 ```
+
+No `dtctl`? Upload the UI-importable workflow JSON
+([ai-agent-optimization.workflow.json](assets/optimization/ai-agent-optimization.workflow.json))
+from **Workflows → Upload**. It carries the reference tenant's guardian
+`objectId` (a base64 string) — after you create your own guardian, repoint it to
+yours: `dtctl get settings --schema app:dynatrace.site.reliability.guardian:guardians -o json --plain | grep -B2 "AI Agent Quality"` gives the new `objectId`; paste it into `tasks.run_validation.input.objectId`.
 
 Beyond the guardian:
 
