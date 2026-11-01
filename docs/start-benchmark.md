@@ -109,6 +109,7 @@ page above. Reference: GitHub's
 | `DT_PLATFORM_TOKEN` | ✅ | Dynatrace **platform** token (`dt0s16`) for `dtctl` — token **B**. |
 | `DYNATRACE_API_TOKEN` | ✅ | Dynatrace **operator + dt-evals** token — the DynaKube `apiToken` (Kubernetes-monitoring scopes) **and** the Phase-4 dt-evals token. See token **C**. Distinct from `DT_API_TOKEN`. |
 | `WORKSHOP_ROOM_PASSWORD` | ✅ | The workshop **room password** from your host — the only model credential you supply. Unlocks the hosted proxy that powers the agents *and* the Phoenix / dt-evals judge. See token **D** below. |
+| `WORKSHOP_DISPENSER_URL` | ✅ | The **dispenser URL** from your host (given with the room password), e.g. `https://litellm-proxy.<tailnet>.ts.net/dispense`. Where the room password is exchanged for your model key. Part of token **D** below. |
 | `GH_PAT` | ✅ | GitHub fine-grained PAT for the demo write-back — token **E**. |
 | `GH_DEMO_REPO` | ✅ | The demo repo the GitHub MCP writes to, as `owner/repo` (e.g. `your-username/bad-crew-demo`). |
 | `DT_ENVIRONMENT` | optional | Dynatrace **apps** URL (`https://<env>.apps.dynatrace.com`). Derived from `DT_TENANT_URL` if unset. |
@@ -195,6 +196,10 @@ the real provider key lives only on the proxy host.
 
 - **Get it:** from your workshop host (chat, slide, or the landing page). Paste it
   verbatim as the `WORKSHOP_ROOM_PASSWORD` Codespace secret — don't quote or edit it.
+- **Also set `WORKSHOP_DISPENSER_URL`:** your host gives you the dispenser URL
+  (`https://litellm-proxy.<tailnet>.ts.net/dispense`) together with the password —
+  set it as a Codespace secret too. It is **required**: the repo contains no
+  dispenser host, so the bootstrap fails closed without it (ISI-7000).
 - **Under the hood:** the model is still DeepSeek (the cost-efficient default for
   the workshop), reached through a LiteLLM proxy. The full flow is in
   [`.devcontainer/SECRETS.md`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md).

@@ -57,6 +57,7 @@ Your host may hand you the Dynatrace tokens in chat or on the landing page.
 |---|---|---|
 | `DT_TENANT_URL` | `https://abc12345.live.dynatrace.com` | This tenant's URL. The `.live.` host is the OTLP / operator ingest endpoint; `dtctl` derives the `.apps.` platform URL from it automatically |
 | `WORKSHOP_ROOM_PASSWORD` | *(from your host)* | The workshop **room password** — the only model credential you supply. At startup it is exchanged, over the workshop's hosted proxy, for a per-attendee model endpoint + key powering every kagent agent **and** the Phoenix / dt-evals judge. No DeepSeek/OpenAI key needed |
+| `WORKSHOP_DISPENSER_URL` | `https://litellm-proxy.<tailnet>.ts.net/dispense` | The **dispenser URL** from your host (given with the room password) — where the password is exchanged for your key. **Required**: no dispenser host is baked into the repo |
 | `GH_PAT` | `github_pat_...` | A **fine-grained** GitHub PAT scoped to your demo repo only (Contents RW · Issues RW · Pull requests RW) so the BMAD crew's GitHub MCP can open issues / PRs |
 | `GH_DEMO_REPO` | `your-username/bad-crew-demo` | The demo repo the BMAD crew writes to, as `owner/repo` |
 
@@ -93,6 +94,7 @@ for the exact deploy order.
 │      Codespace secrets:                                           │
 │   DT_TENANT_URL · DT_API_TOKEN · DYNATRACE_API_TOKEN              │
 │   DT_PLATFORM_TOKEN · WORKSHOP_ROOM_PASSWORD                      │
+│   WORKSHOP_DISPENSER_URL                                          │
 │   GH_PAT · GH_DEMO_REPO                                           │
 └──────────────────────┬────────────────────────────────▲──────────┘
                        │ open Codespace                 │ issues / PRs

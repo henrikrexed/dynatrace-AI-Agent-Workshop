@@ -60,6 +60,7 @@ check DT_ENVIRONMENT    optional "platform apps URL (https://<env>.apps.dynatrac
 
 echo "[Phase 3] Agents LLM access — room-password proxy (ISI-6996)"
 check WORKSHOP_ROOM_PASSWORD required "the workshop room password — the ONLY model credential you supply; dispense-llm.sh exchanges it for a per-attendee LiteLLM-proxy endpoint + minted virtual key powering the kagent agents + Phoenix/dt-evals judge (no raw DeepSeek key needed)"
+check WORKSHOP_DISPENSER_URL required "the model-proxy dispenser URL from your workshop host (given alongside the room password); dispense-llm.sh fails closed without it — no host is baked into the repo (ISI-7000)"
 check_either DEEPSEEK_API_KEY LLM_API_KEY optional "direct DeepSeek key — ONLY if bypassing the room-password proxy (e.g. CI/self-host). Normally fetched at runtime from WORKSHOP_ROOM_PASSWORD; leave unset"
 
 echo "[Phase 3] GitHub MCP (BMAD 'bad crew')"
