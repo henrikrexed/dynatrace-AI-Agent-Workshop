@@ -3,6 +3,9 @@
 kubeconfig*
 *.kubeconfig
 
+# Attendee-rendered Dynatrace assets (envsubst output of ${WORKSHOP_PREFIX}, ISI-6986)
+.rendered/
+
 # Secrets — never commit (contract: .devcontainer/SECRETS.md)
 .env
 .env.*

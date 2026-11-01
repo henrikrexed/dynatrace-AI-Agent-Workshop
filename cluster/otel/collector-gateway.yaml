@@ -74,9 +74,19 @@ spec:
         detectors: [env, system]
         timeout: 2s
       resource:
+        # Per-attendee identity on a shared Dynatrace tenant (ISI-6986). Both values
+        # are rendered from ${WORKSHOP_PREFIX} by `envsubst` in cluster/install.sh at
+        # apply time — the single point every exported span/metric/log is tagged.
+        #   - k8s.cluster.name : per-attendee cluster name in Dynatrace topology.
+        #   - workshop.attendee: a dedicated, stable scoping attribute every training
+        #     DQL query filters on, so isolation survives regardless of cluster-name
+        #     semantics. NEVER rename it without updating the optimization/ DQL assets.
         attributes:
           - key: k8s.cluster.name
-            value: workshop
+            value: ${WORKSHOP_PREFIX}
+            action: upsert
+          - key: workshop.attendee
+            value: ${WORKSHOP_PREFIX}
             action: upsert
       # Normalise LLM span attributes so Dynatrace AI Observability and Phoenix
       # agree on names. Two directions, both additive:

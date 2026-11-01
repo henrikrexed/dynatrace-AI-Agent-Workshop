@@ -33,7 +33,7 @@ objectives:
     warning: 18000
     dqlQuery: |
       fetch spans, from: now()-1d
-      | filter service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
+      | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
       | summarize sli = round(avg(gen_ai.usage.input_tokens))
       | fields sli
     segments: []
@@ -48,7 +48,7 @@ objectives:
     warning: 4
     dqlQuery: |
       fetch spans, from: now()-1d
-      | filter service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
+      | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
       | summarize calls = count(), by:{gen_ai.task.id}
       | summarize sli = round(avg(calls), decimals: 2)
       | fields sli
@@ -64,7 +64,7 @@ objectives:
     warning: 300
     dqlQuery: |
       fetch spans, from: now()-1d
-      | filter service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
+      | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
       | summarize sli = round(avg(gen_ai.usage.output_tokens))
       | fields sli
     segments: []
