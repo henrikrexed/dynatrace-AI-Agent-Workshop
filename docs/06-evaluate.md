@@ -50,12 +50,14 @@ also surfaces each LLM call's prompt and completion as OpenInference
 in the trace view — which is exactly what the judge reads.
 
 !!! tip "The DeepSeek judge is already wired"
-    The workshop's Phoenix is preconfigured for DeepSeek (`DEEPSEEK_API_KEY` is
-    injected from your Codespace key, and `PHOENIX_ALLOWED_PROVIDERS=DEEPSEEK`
-    restricts the model menu), so **DeepSeek is the only — and obvious — choice**
-    everywhere you pick a judge model. You never hand-enter a key. If your Phoenix
-    is *not* preconfigured, add the key once under **Settings → AI Providers →
-    DeepSeek** and it behaves the same from there on.
+    The workshop's Phoenix is preconfigured for DeepSeek — the judge key and
+    endpoint are injected from the model proxy your `WORKSHOP_ROOM_PASSWORD`
+    unlocked (no personal DeepSeek key anywhere), and
+    `PHOENIX_ALLOWED_PROVIDERS=DEEPSEEK` restricts the model menu — so **DeepSeek
+    is the only — and obvious — choice** everywhere you pick a judge model. You
+    never hand-enter a key. If your Phoenix is *not* preconfigured, re-run
+    `bash .devcontainer/bootstrap/dispense-llm.sh` (then restart Phoenix) to
+    refresh the dispensed proxy credentials.
 
 ### Create and run an LLM-as-a-judge (no code)
 
@@ -183,9 +185,10 @@ guess; defaults to `sre-agent`), and set the gate by tightening a
 answers. Those two edits *are* the evaluation; the run below just executes it.
 
 **Credentials** live in `evals/.env`: a **dedicated** Dynatrace `dt0c01` token
-(`storage:spans:read` + `storage:events:write`), your `…apps.dynatrace.com` URL, and
-a judge key (a DeepSeek key works). For the exact scopes and where each token is
-generated, see
+(`storage:spans:read` + `storage:events:write`) and your `…apps.dynatrace.com` URL.
+The judge key is **auto-supplied by the room-password proxy**
+(`WORKSHOP_ROOM_PASSWORD`), so you normally set no model key here. For the exact
+scopes and where each token is generated, see
 **[Start the benchmark → Create the required tokens](start-benchmark.md#4-create-the-required-tokens)**.
 
 ```bash
