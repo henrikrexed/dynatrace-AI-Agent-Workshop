@@ -29,11 +29,16 @@ flowchart LR
   C -- "real DeepSeek key<br/>(host-only)" --> D[api.deepseek.com]
 ```
 
-- The dispenser is exposed publicly over **Tailscale Funnel** (HTTPS) at
-  `https://litellm-proxy.<tailnet>.ts.net/dispense`. This URL is **not** baked into
-  the repo — you distribute it to attendees as the required `WORKSHOP_DISPENSER_URL`
-  secret (alongside the room password); `dispense-llm.sh` fails closed without it
-  (ISI-7000).
+- The dispenser is exposed publicly over **Tailscale Funnel** (HTTPS). Its hostname
+  is an **opaque, rotatable** Tailscale machine name
+  (`https://<dispenser-host>.<tailnet>.ts.net/dispense`), **not** a guessable name,
+  and the live value is **never baked into the repo**. You distribute it to attendees
+  as the required `WORKSHOP_DISPENSER_URL` secret (alongside the room password) from
+  the value handed to you privately by the proxy operator; `dispense-llm.sh` fails
+  closed without it (ISI-7000). The hostname can be rotated at any time (e.g. after a
+  leak) with no attendee-visible change other than a new secret value — the GET
+  `/dispense` + `X-Room-Password` contract is identical. (Rotation procedure lives
+  in the private `proxmox-clusters` repo, runbook `ISI-7001`.)
 - A valid **room password** → the dispenser mints a fresh, budget-capped virtual
   key scoped to the single `deepseek-chat` model and returns the proxy endpoint +
   key. The attendee's bootstrap writes them to the gitignored `.workshop-llm.env`.
