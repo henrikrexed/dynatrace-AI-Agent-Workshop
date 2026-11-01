@@ -425,6 +425,25 @@ t10_docs_render() {
           if(fv=="fetch" && /\$\{WORKSHOP_PREFIX\}/) c++ }
     END{print c+0}' "${out}"/docs/*.md)"
   [ "${leak:-0}" = "0" ] || fails+=("${leak} unresolved \${WORKSHOP_PREFIX} inside DQL blocks")
+  # Downloadable notebook/workflow JSON must be personalized too (ISI-7007):
+  # the attendee uploads them into Dynatrace, so their DQL must carry the prefix.
+  local nb="${out}/docs/assets/optimization/ai-agent-workflow-steps.notebook.json"
+  local wf="${out}/docs/assets/optimization/ai-agent-optimization.workflow.json"
+  [ -f "$nb" ] || fails+=("read-the-run notebook JSON not emitted")
+  [ -f "$wf" ] || fails+=("workflow JSON not emitted")
+  if [ -f "$nb" ]; then
+    # DQL lives inside a JSON string, so the quotes are backslash-escaped:
+    # the file literally contains  workshop.attendee == \"<prefix>\"
+    grep -qF "workshop.attendee == \\\"${pfx}" "$nb" 2>/dev/null \
+      || fails+=("notebook JSON DQL not personalized")
+    grep -qF '${WORKSHOP_PREFIX}' "$nb" 2>/dev/null \
+      && fails+=("unresolved \${WORKSHOP_PREFIX} left in notebook JSON")
+  fi
+  if have jq; then
+    for js in "${out}"/docs/assets/optimization/*.json; do
+      jq empty "$js" >/dev/null 2>&1 || fails+=("$(basename "$js") invalid JSON after render")
+    done
+  fi
   # Manifests parse (if yq present).
   if have yq; then
     yq ea 'true' "${REPO_ROOT}/cluster/mkdocs/mkdocs.yaml" >/dev/null 2>&1 || fails+=("mkdocs.yaml invalid YAML")
@@ -432,7 +451,7 @@ t10_docs_render() {
       | yq e 'true' - >/dev/null 2>&1 || fails+=("kind-config.yaml invalid after render")
   fi
   if [ ${#fails[@]} -eq 0 ]; then
-    record T10 "docs render" PASS "DQL + launchpad personalized to '${pfx}'; instructions preserved; no unresolved tokens in DQL; manifests valid"
+    record T10 "docs render" PASS "DQL + launchpad + downloadable notebook/workflow JSON personalized to '${pfx}'; instructions preserved; no unresolved tokens in DQL; manifests + JSON valid"
   else
     record T10 "docs render" FAIL "$(IFS='; '; echo "${fails[*]}")"
   fi

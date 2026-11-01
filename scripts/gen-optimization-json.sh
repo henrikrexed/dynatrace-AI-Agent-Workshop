@@ -27,7 +27,9 @@ command -v yq >/dev/null 2>&1 || { echo "error: yq (mikefarah) not found on PATH
 
 mkdir -p "$out"
 
-# notebook + dashboard: emit only the portable document `content`
+# notebooks + dashboard: emit only the portable document `content`
+yq -o=json '.content' "$src/ai-agent-workflow-steps.notebook.yaml" \
+  > "$out/ai-agent-workflow-steps.notebook.json"
 yq -o=json '.content' "$src/ai-agent-optimization-before-after.notebook.yaml" \
   > "$out/ai-agent-optimization-before-after.notebook.json"
 yq -o=json '.content' "$src/ai-agent-optimization.dashboard.yaml" \
@@ -39,6 +41,7 @@ yq -o=json '.' "$src/ai-agent-optimization.workflow.yaml" \
 
 echo "generated:"
 for f in \
+  ai-agent-workflow-steps.notebook.json \
   ai-agent-optimization-before-after.notebook.json \
   ai-agent-optimization.dashboard.json \
   ai-agent-optimization.workflow.json; do

@@ -61,6 +61,21 @@ render_launchpad() {
   fi
 }
 
+render_json_asset() {
+  # Personalize a UI-importable JSON asset (notebook / dashboard / workflow the
+  # attendee downloads from their in-cluster mkdocs site and uploads into their
+  # Dynatrace tenant). These carry DQL that filters on workshop.attendee ==
+  # "${WORKSHOP_PREFIX}" and service.name == "${WORKSHOP_PREFIX}-sre-agent"
+  # (ISI-6988), so the download must already match THIS attendee — no more
+  # find/replace step. Full scoped envsubst: a generated document carries no
+  # instructional ${…} that must survive, only the identity placeholders.
+  local f="$1"
+  if have envsubst; then
+    local tmp="${f}.rendered"
+    envsubst "${SUBST_VARS}" < "${f}" > "${tmp}" && mv "${tmp}" "${f}"
+  fi
+}
+
 render_doc_dql() {
   # Personalize ONLY the DQL code blocks — the queries an attendee pastes/runs —
   # leaving prose and bash/sh/text snippets with their literal ${WORKSHOP_PREFIX}.
@@ -117,10 +132,19 @@ while IFS= read -r -d '' md; do
   render_doc_dql "${md}"
 done < <(find "${OUT}/docs" -name '*.md' -type f -print0)
 
+# Personalize the downloadable optimization artifacts (ISI-7007): the notebook,
+# dashboard and workflow JSON an attendee downloads from the in-cluster site and
+# imports into Dynatrace must already carry THIS attendee's prefix in their DQL.
+if [ -d "${OUT}/docs/assets/optimization" ]; then
+  while IFS= read -r -d '' js; do
+    render_json_asset "${js}"
+  done < <(find "${OUT}/docs/assets/optimization" -name '*.json' -type f -print0)
+fi
+
 # The importable Dynatrace launchpad, personalized with the attendee's live env.
 if [ -f "${REPO_ROOT}/cluster/dynatrace/launchpad.md" ]; then
   cp "${REPO_ROOT}/cluster/dynatrace/launchpad.md" "${OUT}/launchpad.md"
   render_launchpad "${OUT}/launchpad.md"
 fi
 
-ok "personalized site rendered under ${OUT#${REPO_ROOT}/} (serve in-cluster via cluster/mkdocs/mkdocs.yaml → http://localhost:8000)"
+ok "personalized site rendered under ${OUT#${REPO_ROOT}/} (markdown DQL + launchpad + downloadable notebook/dashboard/workflow JSON; serve in-cluster via cluster/mkdocs/mkdocs.yaml → http://localhost:8000)"
