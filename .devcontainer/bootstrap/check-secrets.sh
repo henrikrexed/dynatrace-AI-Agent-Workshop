@@ -34,6 +34,22 @@ check_either() {
 
 echo "--- Codespace secrets contract (values never printed) ---"
 
+# [Prefix] WORKSHOP_PREFIX — REQUIRED + fail-closed (ISI-6986). Unlike the secrets
+# below (which degrade gracefully), a missing/invalid prefix stops the bootstrap:
+# downstream namespaces + OTel attributes template with it to isolate this attendee
+# on the shared tenant. No silent fallback, no auto-derive.
+prefix_bad=0
+echo "[Prefix] Shared-tenant isolation prefix"
+if [ -z "${WORKSHOP_PREFIX:-}" ]; then
+  err "WORKSHOP_PREFIX is MISSING (required) — set it in the 'Create codespace with options…' dialog (lowercase label, e.g. team-alpha)"
+  prefix_bad=1
+elif ! valid_workshop_prefix "${WORKSHOP_PREFIX}"; then
+  err "WORKSHOP_PREFIX is INVALID (required) — must match ${WORKSHOP_PREFIX_PATTERN} (lowercase, start with a letter, 2-19 chars of a-z 0-9 '-')"
+  prefix_bad=1
+else
+  ok "WORKSHOP_PREFIX is set and valid"
+fi
+
 echo "[Phase 2] Dynatrace operator + OTLP ingest"
 check DT_TENANT_URL required "Dynatrace tenant, e.g. https://abc12345.live.dynatrace.com"
 check DT_API_TOKEN  required "Dynatrace INGEST token (OTLP export + DynaKube dataIngestToken)"
@@ -58,4 +74,10 @@ check ANTHROPIC_API_KEY optional "used if agents target Anthropic models"
 
 echo "---------------------------------------------------------"
 echo "Set/rotate these under: GitHub repo/user Settings > Codespaces > Secrets."
+# Fail-closed ONLY on the required prefix; the secret presence checks above stay
+# advisory (components skip cleanly when their secret is absent).
+if [ "$prefix_bad" -ne 0 ]; then
+  err "WORKSHOP_PREFIX is unset or invalid — fix it in the Codespace secrets and rebuild; the install chain will not render without it."
+  exit 1
+fi
 exit 0
