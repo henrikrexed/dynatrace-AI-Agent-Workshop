@@ -12,7 +12,11 @@
 apiVersion: kagent.dev/v1alpha2
 kind: Agent
 metadata:
-  name: sre-agent
+  # Templated with ${WORKSHOP_PREFIX} (ISI-6986): uniquely names this attendee's
+  # agent on the shared tenant, and the agent name is what kagent emits as the
+  # OTel service.name — so traces arrive as ${WORKSHOP_PREFIX}-sre-agent (WS2).
+  # envsubst resolves it at apply time via agents/install-agents.sh.
+  name: ${WORKSHOP_PREFIX}-sre-agent
   namespace: kagent
   labels:
     app.kubernetes.io/part-of: workshop-agents
@@ -21,7 +25,7 @@ spec:
   description: SRE agent — investigates and operates the Kubernetes cluster using kubectl/k8s tools.
   type: Declarative
   declarative:
-    modelConfig: workshop-llm
+    modelConfig: ${WORKSHOP_PREFIX}-workshop-llm
     systemMessage: |
       You are the SRE agent for a Kubernetes cluster.
       Your job is to INVESTIGATE problems and, when asked, safely OPERATE the cluster,
