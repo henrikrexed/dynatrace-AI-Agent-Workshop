@@ -1,0 +1,35 @@
+# LiteLLM proxy config — workshop DeepSeek gateway (ISI-6995 / ISI-6992 WS2)
+#
+# This file is SAFE to commit: it contains NO secrets. The real credentials are
+# resolved at runtime from the process environment (see litellm.env.example),
+# which is supplied only by the systemd EnvironmentFile on the LXC host.
+#
+# SECURITY MODEL — this model_list is the allowlist. It has exactly ONE entry:
+# "deepseek-chat". Any request for any other model_name is rejected by LiteLLM
+# (HTTP 400 "model not found"), so a leaked virtual key can only ever reach
+# deepseek-chat and nothing else on the upstream account.
+
+model_list:
+  - model_name: deepseek-chat
+    litellm_params:
+      model: deepseek/deepseek-chat
+      api_base: https://api.deepseek.com
+      # Resolved from the environment at startup — never a literal key.
+      api_key: os.environ/DEEPSEEK_API_KEY
+
+general_settings:
+  # Admin key used ONLY by the dispenser to mint per-attendee virtual keys.
+  # Attendees never see this; they only ever get a capped virtual key.
+  master_key: os.environ/LITELLM_MASTER_KEY
+  # Virtual-key + per-key budget store (PostgreSQL — LiteLLM requires it).
+  database_url: os.environ/DATABASE_URL
+
+litellm_settings:
+  # Silently drop provider-incompatible params instead of erroring, so a
+  # heterogeneous workshop client set (kagent, Phoenix, dt-evals) just works.
+  drop_params: true
+  # Keep logs quiet — virtual keys and prompts must not be echoed.
+  set_verbose: false
+  # Hard ceiling: once a virtual key's spend hits its max_budget, LiteLLM
+  # returns 429 (ExceededBudget) instead of forwarding the call.
+  max_budget: 0  # 0 = no global cap; per-key caps are set at mint time.

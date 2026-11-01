@@ -1,0 +1,38 @@
+[Unit]
+Description=LiteLLM proxy (workshop DeepSeek gateway)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Secrets (DEEPSEEK_API_KEY, LITELLM_MASTER_KEY, DATABASE_URL) live here, 0600.
+EnvironmentFile=/etc/litellm/litellm.env
+# ProtectHome makes /root read-only; point HOME + caches (prisma query engine)
+# at the writable state dir instead.
+Environment=HOME=/var/lib/litellm
+Environment=XDG_CACHE_HOME=/var/lib/litellm/.cache
+Environment=PRISMA_BINARY_CACHE_DIR=/var/lib/litellm/.cache/prisma
+ExecStart=/opt/litellm/venv/bin/litellm \
+  --config /etc/litellm/config.yaml \
+  --host 127.0.0.1 \
+  --port 4000 \
+  --use_prisma_db_push
+# --use_prisma_db_push syncs the schema via `prisma db push` instead of
+# `migrate deploy`. On litellm 1.106.x the migrate-deploy path crashes in an
+# informational "db ahead of head" check (TypeError on a bytes migration name);
+# db push avoids it and is correct for a single-node workshop DB.
+Restart=on-failure
+RestartSec=3
+# Bound to localhost; only the Tailscale Funnel exposes it publicly.
+User=root
+StateDirectory=litellm
+WorkingDirectory=/var/lib/litellm
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/litellm
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

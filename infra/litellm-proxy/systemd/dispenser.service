@@ -1,0 +1,26 @@
+[Unit]
+Description=Workshop key dispenser (mints capped LiteLLM virtual keys)
+After=network-online.target litellm.service
+Wants=network-online.target
+Requires=litellm.service
+
+[Service]
+Type=simple
+# Reuses the same secret file: needs LITELLM_MASTER_KEY, WORKSHOP_ROOM_PASSWORD,
+# PROXY_PUBLIC_URL, and the budget settings.
+EnvironmentFile=/etc/litellm/litellm.env
+ExecStart=/opt/litellm/venv/bin/uvicorn app:app \
+  --host 127.0.0.1 \
+  --port 8080
+WorkingDirectory=/opt/litellm/dispenser
+Restart=on-failure
+RestartSec=3
+User=root
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
