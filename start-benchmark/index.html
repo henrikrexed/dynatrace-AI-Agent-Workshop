@@ -427,10 +427,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#d-llm-deepseek-api-key-deepseek_api_key" class="md-nav__link">
+  <a href="#d-workshop-room-password-workshop_room_password" class="md-nav__link">
     <span class="md-ellipsis">
       
-        D. LLM / DeepSeek API key → DEEPSEEK_API_KEY
+        D. Workshop room password → WORKSHOP_ROOM_PASSWORD
       
     </span>
   </a>
@@ -780,6 +780,33 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../host-runbook/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host runbook (facilitator)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -809,16 +836,18 @@ later module links back here instead of re-listing tokens.</p>
 <pre class="mermaid"><code>flowchart LR
   A[1. Fork the repo] --&gt; B[2. Create a Codespace&lt;br/&gt;on YOUR fork]
   B --&gt; C[3. Set WORKSHOP_PREFIX&lt;br/&gt;+ Codespace secrets]
-  C --&gt; D[4. Create the 5 tokens&lt;br/&gt;with the right scopes]
+  C --&gt; D[4. Add the 5 credentials&lt;br/&gt;4 tokens + room password]
   D --&gt; E[Rebuild / open Codespace&lt;br/&gt;cluster comes up automatically]</code></pre>
-<p>You will need accounts on three services before you start:</p>
+<p>You will need accounts on two services before you start:</p>
 <ul>
 <li><strong>GitHub</strong> (free) — to fork and run the Codespace.</li>
 <li><strong>Dynatrace</strong> — a tenant you can create tokens in. A free
   <a href="https://www.dynatrace.com/signup/">Dynatrace trial</a> works.</li>
-<li><strong>DeepSeek</strong> — for the LLM key that powers the agents
-  (<a href="https://platform.deepseek.com/">platform.deepseek.com</a>).</li>
 </ul>
+<p>You do <strong>not</strong> need a DeepSeek (or any model-provider) account. The agents, the
+Phoenix evals, and the dt-evals judge all reach the model through the workshop's
+hosted proxy — your host gives you a single <strong>room password</strong> that unlocks it,
+which you set as <code>WORKSHOP_ROOM_PASSWORD</code> in Step 3 (token <strong>D</strong> below).</p>
 <hr />
 <h2 id="1-fork-the-repo">1. Fork the repo<a class="headerlink" href="#1-fork-the-repo" title="Permanent link">&para;</a></h2>
 <p>Create your own copy of the workshop repository under your GitHub account.</p>
@@ -923,9 +952,9 @@ page above. Reference: GitHub's
 <td>Dynatrace <strong>operator + dt-evals</strong> token — the DynaKube <code>apiToken</code> (Kubernetes-monitoring scopes) <strong>and</strong> the Phase-4 dt-evals token. See token <strong>C</strong>. Distinct from <code>DT_API_TOKEN</code>.</td>
 </tr>
 <tr>
-<td><code>DEEPSEEK_API_KEY</code></td>
+<td><code>WORKSHOP_ROOM_PASSWORD</code></td>
 <td style="text-align: center;">✅</td>
-<td>DeepSeek LLM key powering the agents — token <strong>D</strong>. (Fallback var: <code>LLM_API_KEY</code>.)</td>
+<td>The workshop <strong>room password</strong> from your host — the only model credential you supply. Unlocks the hosted proxy that powers the agents <em>and</em> the Phoenix / dt-evals judge. See token <strong>D</strong> below.</td>
 </tr>
 <tr>
 <td><code>GH_PAT</code></td>
@@ -949,9 +978,10 @@ page above. Reference: GitHub's
 </code></pre></div>
 <hr />
 <h2 id="4-create-the-required-tokens">4. Create the required tokens<a class="headerlink" href="#4-create-the-required-tokens" title="Permanent link">&para;</a></h2>
-<p>Five credentials power the workshop. Create each one with <strong>exactly</strong> the
-permissions below — over-scoping is a security risk, under-scoping breaks a
-module.</p>
+<p>Five credentials power the workshop. Four are Dynatrace / GitHub tokens you
+<strong>create</strong> with <strong>exactly</strong> the permissions below — over-scoping is a security
+risk, under-scoping breaks a module. The fifth (<strong>D</strong>, the room password) you
+simply <strong>receive from your host</strong> — there is nothing to generate.</p>
 <h3 id="a-dynatrace-ingest-token-dt_api_token">A. Dynatrace ingest token → <code>DT_API_TOKEN</code><a class="headerlink" href="#a-dynatrace-ingest-token-dt_api_token" title="Permanent link">&para;</a></h3>
 <p>Used by the OpenTelemetry collector to ingest the agents' traces, metrics, and
 logs into Dynatrace, and reused as the DynaKube <code>dataIngestToken</code>. <strong>Ingest scopes
@@ -1009,14 +1039,23 @@ ScopeMissing</code>, or <code>metadata-enrichment rules … missing scopes</code
 them (no new Codespace secret needed), re-run <code>bash cluster/secrets.sh</code>, then
 delete the ActiveGate pod so it picks up the refreshed token.</p>
 </div>
-<h3 id="d-llm-deepseek-api-key-deepseek_api_key">D. LLM / DeepSeek API key → <code>DEEPSEEK_API_KEY</code><a class="headerlink" href="#d-llm-deepseek-api-key-deepseek_api_key" title="Permanent link">&para;</a></h3>
-<p>Powers every kagent agent (DeepSeek is the cost-efficient default for the
-workshop). DeepSeek's API is OpenAI-compatible.</p>
+<h3 id="d-workshop-room-password-workshop_room_password">D. Workshop room password → <code>WORKSHOP_ROOM_PASSWORD</code><a class="headerlink" href="#d-workshop-room-password-workshop_room_password" title="Permanent link">&para;</a></h3>
+<p>The <strong>only model credential you supply</strong> — and the one you don't create yourself.
+Your host gives you a single <strong>room password</strong> (rotated each session). At
+container start, <code>.devcontainer/bootstrap/dispense-llm.sh</code> exchanges it — over the
+workshop's hosted proxy — for a <strong>per-attendee endpoint and a freshly minted,
+budget-capped model key</strong>, written to the gitignored <code>.workshop-llm.env</code>. That one
+credential powers <strong>every</strong> model call in the lab: the kagent agents, the Phoenix
+evals, and the dt-evals judge. <strong>No DeepSeek or OpenAI key is needed anywhere</strong> —
+the real provider key lives only on the proxy host.</p>
 <ul>
-<li><strong>Create it:</strong> at
-  <a href="https://platform.deepseek.com/api_keys">platform.deepseek.com/api_keys</a> →
-  <strong>Create new API key</strong>. Copy it immediately — DeepSeek shows it only once.</li>
-<li><strong>Docs:</strong> <a href="https://api-docs.deepseek.com/">DeepSeek API docs</a>.</li>
+<li><strong>Get it:</strong> from your workshop host (chat, slide, or the landing page). Paste it
+  verbatim as the <code>WORKSHOP_ROOM_PASSWORD</code> Codespace secret — don't quote or edit it.</li>
+<li><strong>Under the hood:</strong> the model is still DeepSeek (the cost-efficient default for
+  the workshop), reached through a LiteLLM proxy. The full flow is in
+  <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"><code>.devcontainer/SECRETS.md</code></a>.</li>
+<li><strong>Self-hosting or CI?</strong> Bypass the proxy with a direct <code>DEEPSEEK_API_KEY</code> (or
+  <code>LLM_API_KEY</code>) instead — see the optional secrets in <code>SECRETS.md</code>.</li>
 </ul>
 <h3 id="e-github-fine-grained-pat-gh_pat">E. GitHub fine-grained PAT → <code>GH_PAT</code><a class="headerlink" href="#e-github-fine-grained-pat-gh_pat" title="Permanent link">&para;</a></h3>
 <p>Used by the <strong>GitHub MCP</strong> so the BMAD "bad crew" can open issues and pull

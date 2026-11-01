@@ -818,6 +818,33 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../host-runbook/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Host runbook (facilitator)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -1079,9 +1106,10 @@ telemetry — so a low score is one click from the trace that caused it.</p>
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>./run-dt-eval.sh<span class="w">          </span><span class="c1"># renders the config with your env, then runs validate + run</span>
 </code></pre></div>
 <p>The <code>.env</code> needs a dedicated <code>DYNATRACE_API_TOKEN</code> (<code>dt0c01</code> with
-<code>storage:spans:read</code> + <code>storage:events:write</code>), <code>DT_ENVIRONMENT_URL</code>, a judge
-<code>OPENAI_API_KEY</code> (a DeepSeek key works), and <code>DT_EVAL_SERVICE</code> — <strong>discover</strong> that
-service name with DQL, don't guess it:</p>
+<code>storage:spans:read</code> + <code>storage:events:write</code>), <code>DT_ENVIRONMENT_URL</code>, and
+<code>DT_EVAL_SERVICE</code> — <strong>discover</strong> that service name with DQL, don't guess it. The
+judge key is supplied automatically by the room-password proxy
+(<code>WORKSHOP_ROOM_PASSWORD</code>), so you don't set <code>OPENAI_API_KEY</code> yourself:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>fetch spans, from: now() - 2h
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>| filter isNotNull(gen_ai.operation.name) or isNotNull(gen_ai.request.model)
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>| summarize span_count = count(), by: { service.name }
