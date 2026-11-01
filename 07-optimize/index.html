@@ -955,10 +955,20 @@ data on screen:</p>
 </code></pre></div>
 <p>See <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/dynatrace/optimization/README.md"><code>cluster/dynatrace/optimization/README.md</code></a>
 for the guardian + workflow (they render the same way).</p>
+<p>No <code>dtctl</code>? Download the UI-importable JSON and upload it in your own tenant
+(Dashboards / Notebooks → <strong>Upload</strong>). The JSON still carries the
+<code>${WORKSHOP_PREFIX}</code> placeholder — find/replace it with your attendee prefix
+before uploading (the dtctl path does the same via <code>envsubst</code>):</p>
 <ul>
-<li><strong>Notebook — <em>Read an AI Agent Run</em></strong> (<code>ai-agent-workflow-steps</code>): walks one
+<li><a href="../assets/optimization/ai-agent-optimization.dashboard.json">ai-agent-optimization.dashboard.json</a></li>
+<li>
+<p><a href="../assets/optimization/ai-agent-optimization-before-after.notebook.json">ai-agent-optimization-before-after.notebook.json</a></p>
+</li>
+<li>
+<p><strong>Notebook — <em>Read an AI Agent Run</em></strong> (<code>ai-agent-workflow-steps</code>): walks one
   run from the crew list down to the per-hop token bill — the understand-first
-  companion to the section below. Start here.</li>
+  companion to the section below. Start here.</p>
+</li>
 <li><strong>Dashboard</strong> — <em>AI Agent Optimization</em>: spend ranking, input:output ratio,
   tools-actually-used, loop detection, token-trend.</li>
 <li><strong>Notebook — <em>AI Agent Optimization — before/after</em></strong>: the observe → find →
@@ -1449,6 +1459,11 @@ guardian daily over the last 24h (schedule ships disabled — flip
 <code>trigger.schedule.isActive: true</code> to go continuous):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>dtctl<span class="w"> </span>create<span class="w"> </span>workflow<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization.workflow.yaml
 </code></pre></div>
+<p>No <code>dtctl</code>? Upload the UI-importable workflow JSON
+(<a href="../assets/optimization/ai-agent-optimization.workflow.json">ai-agent-optimization.workflow.json</a>)
+from <strong>Workflows → Upload</strong>. It carries the reference tenant's guardian
+<code>objectId</code> (a base64 string) — after you create your own guardian, repoint it to
+yours: <code>dtctl get settings --schema app:dynatrace.site.reliability.guardian:guardians -o json --plain | grep -B2 "AI Agent Quality"</code> gives the new <code>objectId</code>; paste it into <code>tasks.run_validation.input.objectId</code>.</p>
 <p>Beyond the guardian:</p>
 <ul>
 <li>Keep the dt-evals suite in CI as a <strong>regression + budget gate</strong> on every agent
