@@ -59,6 +59,10 @@
       "description": "The workshop room password. The ONLY model credential you supply — it is exchanged at startup for a per-attendee model-proxy endpoint + key. No DeepSeek/OpenAI key needed.",
       "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
     },
+    "WORKSHOP_DISPENSER_URL": {
+      "description": "REQUIRED. The model-proxy dispenser URL from your workshop host (given alongside the room password), e.g. https://litellm-proxy.<tailnet>.ts.net/dispense. The room password is exchanged here for your per-attendee model key.",
+      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
+    },
     "GH_PAT": {
       "description": "Fine-grained PAT for the GitHub MCP / 'bad crew' demo repo (Contents+Issues+PRs RW on one repo).",
       "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"

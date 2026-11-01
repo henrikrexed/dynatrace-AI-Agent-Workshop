@@ -172,7 +172,7 @@ t2_secrets() {
 
   # (a) Matrix coverage — every §3 contract var must be referenced by the script.
   local required_vars=(DT_TENANT_URL DT_API_TOKEN DT_PLATFORM_TOKEN DT_ENVIRONMENT \
-    WORKSHOP_ROOM_PASSWORD DEEPSEEK_API_KEY LLM_API_KEY GH_PAT GITHUB_TOKEN GH_DEMO_REPO \
+    WORKSHOP_ROOM_PASSWORD WORKSHOP_DISPENSER_URL DEEPSEEK_API_KEY LLM_API_KEY GH_PAT GITHUB_TOKEN GH_DEMO_REPO \
     DT_ENV_URL DT_ENVIRONMENT_URL DYNATRACE_API_TOKEN DT_EVAL_SERVICE \
     OPENAI_API_KEY ANTHROPIC_API_KEY)
   local uncovered=()
@@ -204,6 +204,11 @@ t2_secrets() {
   # Model access: the room password (dispensed virtual key) OR a direct key (CI/self-host bypass).
   secret_set WORKSHOP_ROOM_PASSWORD || either_set DEEPSEEK_API_KEY LLM_API_KEY \
     || req_missing+=("WORKSHOP_ROOM_PASSWORD (or direct DEEPSEEK_API_KEY|LLM_API_KEY)")
+  # On the room-password path, the dispenser URL is required too (no host is baked into the
+  # repo — ISI-7000). Not needed on the direct-key bypass (dispense-llm.sh is skipped then).
+  if secret_set WORKSHOP_ROOM_PASSWORD && ! secret_set WORKSHOP_DISPENSER_URL; then
+    req_missing+=("WORKSHOP_DISPENSER_URL (required with WORKSHOP_ROOM_PASSWORD)")
+  fi
   either_set GH_PAT GITHUB_TOKEN      || req_missing+=("GH_PAT|GITHUB_TOKEN")
   secret_set GH_DEMO_REPO  || req_missing+=(GH_DEMO_REPO)
 

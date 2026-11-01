@@ -31,7 +31,7 @@ bash "${SCRIPT_DIR}/bootstrap/create-cluster.sh"
 #     unreachable host just means the agents/evals have no key (rest still installs).
 #     MUST run before install.sh so secrets.sh picks up the dispensed key.
 bash "${SCRIPT_DIR}/bootstrap/dispense-llm.sh" || \
-  warn "model-proxy dispense skipped/failed — set WORKSHOP_ROOM_PASSWORD and re-run 'bash .devcontainer/bootstrap/dispense-llm.sh' then 'bash cluster/install.sh'"
+  warn "model-proxy dispense skipped/failed — set WORKSHOP_ROOM_PASSWORD and WORKSHOP_DISPENSER_URL, then re-run 'bash .devcontainer/bootstrap/dispense-llm.sh' then 'bash cluster/install.sh'"
 
 # 3. Deploy the full workshop platform. Non-fatal: a single failing component
 #    (e.g. a missing secret) must never brick the Codespace — install.sh degrades

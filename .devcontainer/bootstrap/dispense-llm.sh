@@ -23,11 +23,21 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib.sh
 source "${SCRIPT_DIR}/lib.sh"
 
-# Public dispenser endpoint. NOT a secret (the room password gates it, keys are
-# per-attendee + budget-capped + single-model). Overridable via WORKSHOP_DISPENSER_URL
-# if the proxy host is re-provisioned — participants still supply only the password.
-DISPENSER_URL="${WORKSHOP_DISPENSER_URL:-https://litellm-proxy.tail13945d.ts.net/dispense}"
+# Dispenser endpoint — REQUIRED, facilitator-supplied (ISI-7000). NOT hardcoded:
+# the proxy host is published over a rotatable Tailscale Funnel, so the URL must
+# never live in this (public) repo. The host distributes it alongside the room
+# password; attendees set it as the WORKSHOP_DISPENSER_URL Codespace secret. The
+# room password still gates the endpoint (keys are per-attendee, budget-capped,
+# single-model). Fail-closed if absent — mirrors WORKSHOP_ROOM_PASSWORD below.
+DISPENSER_URL="${WORKSHOP_DISPENSER_URL:-}"
 OUT="${REPO_ROOT}/.workshop-llm.env"
+
+if [ -z "${DISPENSER_URL}" ]; then
+  warn "WORKSHOP_DISPENSER_URL is not set — cannot locate the model-proxy dispenser."
+  warn "Set it in the 'Create codespace with options…' dialog (the dispenser URL from the workshop host,"
+  warn "alongside the room password), then rebuild. Without it the agents + Phoenix/dt-evals evals have no model key (the rest still installs)."
+  exit 1
+fi
 
 if [ -z "${WORKSHOP_ROOM_PASSWORD:-}" ]; then
   warn "WORKSHOP_ROOM_PASSWORD is not set — cannot fetch the model-proxy key."
