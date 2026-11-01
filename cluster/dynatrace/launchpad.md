@@ -17,7 +17,8 @@ attendees get through observe → diagnose → evaluate → optimize in a sittin
    cluster with **kagent** (agents on Kubernetes), the **BMAD** crew, and the
    toolchain, all bootstrapped automatically on create
 2. **Wire the agents + GitHub MCP** so the BMAD crew can open issues and PRs on
-   your demo repo, powered by a **DeepSeek** LLM key
+   your demo repo, powered by **DeepSeek** reached through the workshop's hosted
+   model proxy (unlocked by your **room password** — no personal LLM key needed)
 3. **Secure the agents** with **Tetragon** runtime security (watch an agent read
    credential files) and the Agent Sandbox
 4. **Observe everything in this tenant** — an OpenTelemetry Collector streams the
@@ -55,7 +56,7 @@ Your host may hand you the Dynatrace tokens in chat or on the landing page.
 | Codespace secret | Example | What it does |
 |---|---|---|
 | `DT_TENANT_URL` | `https://abc12345.live.dynatrace.com` | This tenant's URL. The `.live.` host is the OTLP / operator ingest endpoint; `dtctl` derives the `.apps.` platform URL from it automatically |
-| `DEEPSEEK_API_KEY` | `sk-...` | The LLM key that powers every kagent agent (DeepSeek is the cost-efficient default). Fallback var: `LLM_API_KEY` |
+| `WORKSHOP_ROOM_PASSWORD` | *(from your host)* | The workshop **room password** — the only model credential you supply. At startup it is exchanged, over the workshop's hosted proxy, for a per-attendee model endpoint + key powering every kagent agent **and** the Phoenix / dt-evals judge. No DeepSeek/OpenAI key needed |
 | `GH_PAT` | `github_pat_...` | A **fine-grained** GitHub PAT scoped to your demo repo only (Contents RW · Issues RW · Pull requests RW) so the BMAD crew's GitHub MCP can open issues / PRs |
 | `GH_DEMO_REPO` | `your-username/bad-crew-demo` | The demo repo the BMAD crew writes to, as `owner/repo` |
 
@@ -90,8 +91,9 @@ for the exact deploy order.
 ┌───────────────────────────────────────────────────────────────────┐
 │  🐙  YOUR GITHUB FORK — dynatrace-AI-Agent-Workshop                │
 │      Codespace secrets:                                           │
-│   DT_TENANT_URL · DT_API_TOKEN · DYNATRACE_API_TOKEN             │
-│   DT_PLATFORM_TOKEN · DEEPSEEK_API_KEY · GH_PAT · GH_DEMO_REPO   │
+│   DT_TENANT_URL · DT_API_TOKEN · DYNATRACE_API_TOKEN              │
+│   DT_PLATFORM_TOKEN · WORKSHOP_ROOM_PASSWORD                      │
+│   GH_PAT · GH_DEMO_REPO                                           │
 └──────────────────────┬────────────────────────────────▲──────────┘
                        │ open Codespace                 │ issues / PRs
                        ▼                                 │ (GitHub MCP)

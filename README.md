@@ -51,10 +51,14 @@ them.
    **4-core / 16 GB** (or larger) machine type.
 3. In the **Create codespace with options…** dialog, set your **`WORKSHOP_PREFIX`**
    (required — a lowercase label like `team-alpha`) and the required Codespace
-   secrets — your Dynatrace tokens, `GH_PAT`, `GH_DEMO_REPO`, and `LLM_API_KEY`.
-   The prefix isolates **your** agents, clusters, and telemetry on the shared
-   Dynatrace tenant; the bootstrap is fail-closed without it. The full list and how
-   to generate each is in [`.devcontainer/SECRETS.md`](.devcontainer/SECRETS.md).
+   secrets — your Dynatrace tokens, `GH_PAT`, `GH_DEMO_REPO`, and the
+   `WORKSHOP_ROOM_PASSWORD` your host gives you. The room password is the **only**
+   model credential you supply: it is exchanged at startup for a per-attendee model
+   endpoint + key that powers the agents and the Phoenix / dt-evals judge — no
+   personal DeepSeek or OpenAI key needed. The prefix isolates **your** agents,
+   clusters, and telemetry on the shared Dynatrace tenant; the bootstrap is
+   fail-closed without it. The full list and how to generate each is in
+   [`.devcontainer/SECRETS.md`](.devcontainer/SECRETS.md).
 4. Wait for `postCreate` to finish. You'll have a running local Kubernetes
    cluster and the full toolchain.
 5. Sanity-check with `kubectl get nodes`, then open the workshop:
