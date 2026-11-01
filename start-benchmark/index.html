@@ -808,7 +808,7 @@ later module links back here instead of re-listing tokens.</p>
 <p>The whole path is four steps:</p>
 <pre class="mermaid"><code>flowchart LR
   A[1. Fork the repo] --&gt; B[2. Create a Codespace&lt;br/&gt;on YOUR fork]
-  B --&gt; C[3. Add Codespace secrets]
+  B --&gt; C[3. Set WORKSHOP_PREFIX&lt;br/&gt;+ Codespace secrets]
   C --&gt; D[4. Create the 5 tokens&lt;br/&gt;with the right scopes]
   D --&gt; E[Rebuild / open Codespace&lt;br/&gt;cluster comes up automatically]</code></pre>
 <p>You will need accounts on three services before you start:</p>
@@ -857,6 +857,20 @@ automatically.</p>
 Codespace before adding them, add the secrets, then run
 <strong>Codespaces: Rebuild Container</strong> so the values are picked up.</p>
 </div>
+<div class="admonition warning">
+<p class="admonition-title">Pick your <code>WORKSHOP_PREFIX</code> — it's REQUIRED and asked for up front</p>
+<p>This is a <strong>shared Dynatrace tenant</strong>: every attendee's agents, clusters, and
+telemetry land in the same environment. <code>WORKSHOP_PREFIX</code> is your personal
+isolation label — it stamps your namespaces, your agents'
+<code>service.name</code> (<code>&lt;prefix&gt;-sre-agent</code>), and the <code>workshop.attendee</code> /
+<code>k8s.cluster.name</code> on every signal, so the dashboards, evals, and DQL you run
+only show <strong>your</strong> data. The <strong>Create codespace with options…</strong> dialog prompts
+for it alongside the secrets below. It is <strong>fail-closed</strong> — if it is unset or
+invalid the bootstrap stops rather than render unscoped. Pick a lowercase label
+that starts with a letter, 2–19 chars of <code>a-z 0-9 -</code> (e.g. <code>team-alpha</code>), and
+keep it to yourself. You set it once at create; everything downstream resolves
+from it automatically.</p>
+</div>
 <hr />
 <h2 id="3-add-your-codespace-secrets">3. Add your Codespace secrets<a class="headerlink" href="#3-add-your-codespace-secrets" title="Permanent link">&para;</a></h2>
 <p>Set the tokens from Step 4 as <strong>Codespace secrets</strong> so they are injected as
@@ -883,6 +897,11 @@ page above. Reference: GitHub's
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><code>WORKSHOP_PREFIX</code></td>
+<td style="text-align: center;">✅</td>
+<td>Your shared-tenant isolation prefix. <strong>Not a token</strong> — a lowercase label (start with a letter, 2–19 chars of <code>a-z 0-9 -</code>, e.g. <code>team-alpha</code>). Fail-closed: the bootstrap stops without it. See the warning in Step 2.</td>
+</tr>
 <tr>
 <td><code>DT_TENANT_URL</code></td>
 <td style="text-align: center;">✅</td>
@@ -1021,13 +1040,20 @@ requests on your demo repo.</p>
 <hr />
 <h2 id="5-confirm-youre-ready">5. Confirm you're ready<a class="headerlink" href="#5-confirm-youre-ready" title="Permanent link">&para;</a></h2>
 <p>Open (or rebuild) the Codespace. <code>postCreate</code> runs automatically and builds the
-local cluster. When the terminal settles, verify:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>bash<span class="w"> </span>.devcontainer/bootstrap/check-secrets.sh<span class="w">   </span><span class="c1"># all required secrets present?</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>kubectl<span class="w"> </span>get<span class="w"> </span>nodes<span class="w">                                </span><span class="c1"># a Ready node?</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>kubectl<span class="w"> </span>get<span class="w"> </span>namespaces<span class="w">                           </span><span class="c1"># dynatrace, kagent, tetragon, phoenix, …?</span>
+local cluster. When it finishes it prints a <strong>bootstrap banner</strong> that echoes your
+resolved <code>WORKSHOP_PREFIX</code>, a ready-to-paste <code>workshop.attendee</code> DQL filter, and a
+link back to this onboarding page — so your isolation label is the first thing you
+confirm. When the terminal settles, verify:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>bash<span class="w"> </span>.devcontainer/bootstrap/check-secrets.sh<span class="w">   </span><span class="c1"># WORKSHOP_PREFIX valid + required secrets present?</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="nv">$WORKSHOP_PREFIX</span><span class="s2">"</span><span class="w">                          </span><span class="c1"># your isolation prefix (also in the banner)</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>kubectl<span class="w"> </span>get<span class="w"> </span>nodes<span class="w">                                </span><span class="c1"># a Ready node?</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>kubectl<span class="w"> </span>get<span class="w"> </span>namespaces<span class="w">                           </span><span class="c1"># dynatrace, kagent, tetragon, phoenix, …?</span>
 </code></pre></div>
-<p>A Ready node and the staged namespaces mean the benchmark is up. You're done
-with onboarding.</p>
+<p>A valid prefix, a Ready node, and the staged namespaces mean the benchmark is up.
+You're done with onboarding. Everywhere a later module shows a Dynatrace DQL or
+Phoenix query, add <code>workshop.attendee == "&lt;your-prefix&gt;"</code> (or scope by
+<code>service.name == "&lt;your-prefix&gt;-sre-agent"</code>) so you only see your own data on the
+shared tenant.</p>
 <h2 id="next">Next<a class="headerlink" href="#next" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong><a href="../00-setup/">00 — Setup (Codespace)</a></strong> — more on the devcontainer and

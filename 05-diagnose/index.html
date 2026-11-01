@@ -965,7 +965,24 @@ surface first as <strong>OTel signals</strong> — the partial error rate on the
 shows up in your <strong>Dynatrace</strong> dashboards and in <strong>Phoenix</strong>, long before a pod
 list would hint at anything wrong. That signal is the <em>symptom</em>; the agent's job
 is to find the <em>cause</em> in cluster state.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>inject<span class="w"> </span><span class="m">12</span><span class="w">      </span><span class="c1"># adds a faulty product-catalog backend (via inject.sh)</span>
+<div class="admonition note">
+<p class="admonition-title">Shared tenant — scope the symptom to your own data</p>
+<p>On the shared workshop tenant everyone's <code>otel-demo</code> traffic lands in the same
+streams. The gateway collector stamps every signal with
+<code>workshop.attendee == "&lt;your-prefix&gt;"</code> (the <code>WORKSHOP_PREFIX</code> you set at
+Codespace create — <code>echo $WORKSHOP_PREFIX</code>), so add that filter to any
+Dynatrace Notebook or dashboard query to see <strong>only your</strong> product-path errors.
+For example, to confirm the intermittent 5xx is yours before you ask the agent:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>fetch spans
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and k8s.namespace.name == "otel-demo"
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>| filter request.is_failed == true
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>| summarize failures = count(), by: { span.name }
+</code></pre></div>
+<p>Replace <code>${WORKSHOP_PREFIX}</code> with your prefix. The same
+<code>workshop.attendee == "&lt;your-prefix&gt;"</code> filter scopes every DQL and Phoenix query
+in <a href="../06-evaluate/">06 — Evaluate</a> and <a href="../07-optimize/">07 — Optimize</a>.</p>
+</div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>inject<span class="w"> </span><span class="m">12</span><span class="w">      </span><span class="c1"># adds a faulty product-catalog backend (via inject.sh)</span>
 </code></pre></div>
 <p>Paste <code>scenarios/12-intermittent-5xx/prompt.md</code>. You point the agent at the
 symptom you observed; it investigates with <code>kubectl</code>:</p>
@@ -983,7 +1000,7 @@ rotation (<code>kubectl get endpoints</code>, pod readiness) — not the fronten
 surfaces the errors. Grade against its <code>expected-diagnosis.md</code> — the agent must
 cite at least its <code>pass_threshold</code> of the required k8s/OTel signals. Clean up
 with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>cleanup<span class="w"> </span><span class="m">12</span><span class="w">     </span><span class="c1"># removes only the faulty backend — never the healthy demo</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>bash<span class="w"> </span>scenarios/run.sh<span class="w"> </span>cleanup<span class="w"> </span><span class="m">12</span><span class="w">     </span><span class="c1"># removes only the faulty backend — never the healthy demo</span>
 </code></pre></div>
 <h2 id="so-what-these-runs-feed-the-rest-of-the-workshop">So what — these runs feed the rest of the workshop<a class="headerlink" href="#so-what-these-runs-feed-the-rest-of-the-workshop" title="Permanent link">&para;</a></h2>
 <p>This module isn't a detour; it's the fuel for everything after it.</p>

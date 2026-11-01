@@ -1013,8 +1013,17 @@ generated, see
 scores back in a Dynatrace Notebook:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>fetch bizevents
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>| filter event.type == "gen_ai.evaluation.result"
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>| filter service.name == "${WORKSHOP_PREFIX}-sre-agent"
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
 </code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Shared tenant — keep the <code>service.name</code> filter</p>
+<p>dt-evals writes each <code>gen_ai.evaluation.result</code> bizevent carrying the evaluated
+agent's <code>service.name</code>, so the <code>service.name == "${WORKSHOP_PREFIX}-sre-agent"</code>
+clause scopes the read-back to <strong>your</strong> results on the shared workshop tenant.
+Replace <code>${WORKSHOP_PREFIX}</code> with your own prefix (<code>echo $WORKSHOP_PREFIX</code>).
+Drop the clause and you summarize every attendee's eval results at once.</p>
+</div>
 <p>Details, including the shared-vs-per-attendee tenant model:
 <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/README.md"><code>evals/dt-evals/README.md</code></a>.</p>
 <hr />
