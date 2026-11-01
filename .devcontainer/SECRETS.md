@@ -12,16 +12,19 @@ GitHub → **Settings → Codespaces → Secrets** (user-level) or the repo's
 to the `henrikrexed/dynatrace-AI-Agent-Workshop` repository. After adding/rotating
 a secret, **rebuild or restart the Codespace** so the new value is injected.
 
-## Required: workshop prefix (fail-closed)
+## Recommended: workshop prefix (auto-derived if unset)
 
 | Variable | Purpose | Example / format |
 |----------|---------|------------------|
-| `WORKSHOP_PREFIX` | **Not a secret**, but prompted in the same create dialog. Isolates this attendee's objects (namespaces, OTel attributes) on the **shared** Dynatrace tenant (ISI-6986). **Required — fail-closed**: the bootstrap stops with a clear message if it is unset or malformed (no silent default, no auto-derive). | lowercase RFC-1123 label `^[a-z][a-z0-9-]{1,18}$` — start with a letter, 2-19 chars, e.g. `team-alpha` |
+| `WORKSHOP_PREFIX` | **Not a secret**, but prompted in the same create dialog. Isolates this attendee's objects (namespaces, OTel attributes) on the **shared** Dynatrace tenant (ISI-6986). **Strongly recommended** — it is the friendly label facilitators filter telemetry by. If unset or malformed, the bootstrap **auto-derives** a valid, per-attendee prefix from your Codespace identity so the stack still deploys (ISI-7005) — set it explicitly to choose your own label. | lowercase RFC-1123 label `^[a-z][a-z0-9-]{1,18}$` — start with a letter, 2-19 chars, e.g. `team-alpha` |
 
-> `WORKSHOP_PREFIX` is validated by `check-secrets.sh` and by each install step
-> (`cluster/install.sh`, `cluster/secrets.sh`, `agents/install-agents.sh`); those
-> scripts abort rather than render an unresolved `${WORKSHOP_PREFIX}`. Downstream
-> template substitutions are owned by later workstreams — WS1 only plumbs the var.
+> `WORKSHOP_PREFIX` is resolved by `resolve_workshop_prefix` in
+> `.devcontainer/bootstrap/lib.sh` (and the mirrored resolver in
+> `cluster/install.sh`): an explicit valid value always wins; otherwise it is
+> normalized or derived deterministically from `$GITHUB_USER` / `$CODESPACE_NAME`
+> so nothing renders an unresolved `${WORKSHOP_PREFIX}` and no attendee lands in
+> an empty cluster. Isolation is preserved — distinct GitHub identities derive
+> distinct prefixes.
 
 ## Required secrets
 

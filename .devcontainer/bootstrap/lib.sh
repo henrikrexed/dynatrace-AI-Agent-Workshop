@@ -10,9 +10,15 @@ export KUBECONFIG
 
 # WORKSHOP_PREFIX — the per-attendee isolation prefix for a shared Dynatrace tenant
 # (ISI-6986). Prompted in the Codespace create dialog; downstream workstreams
-# (WS2/WS3) template namespaces + OTel attribute values with it. NO silent default:
-# it is REQUIRED and fail-closed. We only surface + export it here; validation and
-# enforcement live in valid_workshop_prefix / require_workshop_prefix below.
+# (WS2/WS3) template namespaces + OTel attribute values with it. An explicit,
+# valid value is STRONGLY preferred — it is the friendly label facilitators filter
+# telemetry by. But rather than fail-close into an empty cluster when it is unset
+# or malformed (ISI-7005: attendees hit a broken Codespace with no kagent),
+# resolve_workshop_prefix() below GRACEFULLY derives a valid, deterministic,
+# per-attendee prefix from the Codespace identity so the stack ALWAYS deploys.
+# Isolation is preserved: distinct attendees have distinct GitHub identities, so
+# their derived prefixes differ. We only surface + export the raw value here;
+# normalization lives in sanitize_workshop_prefix / resolve_workshop_prefix below.
 # Format: lowercase RFC-1123 label — a letter, then 1-18 of [a-z0-9-] (len 2-19),
 # valid as a k8s name component AND an OTel attribute value.
 WORKSHOP_PREFIX="${WORKSHOP_PREFIX:-}"
@@ -33,17 +39,42 @@ have() { command -v "$1" >/dev/null 2>&1; }
 # True if $1 is a valid WORKSHOP_PREFIX (prints nothing — caller owns messaging).
 valid_workshop_prefix() { [[ "${1:-}" =~ $WORKSHOP_PREFIX_PATTERN ]]; }
 
-# Fail-closed guard for the install/render scripts. Returns non-zero (with a clear
-# message) when WORKSHOP_PREFIX is unset or malformed, so nothing renders an
-# unresolved ${WORKSHOP_PREFIX}. No silent fallback, no auto-derive (ISI-6986).
-require_workshop_prefix() {
-  if [ -z "${WORKSHOP_PREFIX:-}" ]; then
-    err "WORKSHOP_PREFIX is not set — set it in the 'Create codespace with options…' dialog. It isolates this attendee's objects on the shared Dynatrace tenant (lowercase label, e.g. 'team-alpha')."
-    return 1
+# Coerce an arbitrary string into a valid WORKSHOP_PREFIX, or print nothing if it
+# cannot be salvaged. Lowercase; map any non [a-z0-9-] run to '-'; collapse/trim
+# dashes; guarantee a leading letter; cap at 19 chars (RFC-1123 label + the OTel
+# attribute value constraint). Pure/deterministic — same input always maps to the
+# same output, so every consumer (lib.sh, install.sh) derives an identical prefix.
+sanitize_workshop_prefix() {
+  local s
+  s="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' \
+        | sed -E 's/[^a-z0-9-]+/-/g; s/-+/-/g; s/^-+//; s/-+$//')"
+  [[ "$s" =~ ^[a-z] ]] || s="w-${s}"          # guarantee a leading letter
+  s="$(printf '%s' "${s:0:19}" | sed -E 's/-+$//')"   # cap length, retrim tail
+  if [[ "$s" =~ $WORKSHOP_PREFIX_PATTERN ]]; then printf '%s' "$s"; fi
+}
+
+# Resolve WORKSHOP_PREFIX to a guaranteed-valid value and export it (ISI-7005).
+# An explicit valid value always wins. Otherwise derive deterministically from the
+# Codespace identity so the stack still deploys instead of fail-closing into an
+# empty cluster. Always returns 0 — WORKSHOP_PREFIX is valid when this returns.
+resolve_workshop_prefix() {
+  if valid_workshop_prefix "${WORKSHOP_PREFIX:-}"; then
+    export WORKSHOP_PREFIX
+    return 0
   fi
-  if ! valid_workshop_prefix "${WORKSHOP_PREFIX}"; then
-    err "WORKSHOP_PREFIX='${WORKSHOP_PREFIX}' is invalid — must match ${WORKSHOP_PREFIX_PATTERN} (lowercase, start with a letter, 2-19 chars of a-z 0-9 '-')."
-    return 1
+  local had="${WORKSHOP_PREFIX:-}" src derived=""
+  # Priority: salvage the given value, then GitHub login, then codespace name,
+  # then a last-resort literal (single-tenant/local — isolation moot).
+  for src in "${WORKSHOP_PREFIX:-}" "${GITHUB_USER:-}" "${CODESPACE_NAME:-}" "workshop"; do
+    derived="$(sanitize_workshop_prefix "$src")"
+    [ -n "$derived" ] && break
+  done
+  WORKSHOP_PREFIX="$derived"
+  export WORKSHOP_PREFIX
+  if [ -n "$had" ]; then
+    warn "WORKSHOP_PREFIX='${had}' is invalid — using normalized '${WORKSHOP_PREFIX}' so the stack still deploys. Set a valid WORKSHOP_PREFIX (${WORKSHOP_PREFIX_PATTERN}) in Codespace secrets to pick your own isolation label."
+  else
+    warn "WORKSHOP_PREFIX was not set — auto-derived '${WORKSHOP_PREFIX}' from your Codespace identity so the stack still deploys. Set WORKSHOP_PREFIX in Codespace secrets to pick a friendly isolation label (e.g. team-alpha)."
   fi
   return 0
 }

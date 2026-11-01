@@ -32,7 +32,10 @@ echo x | grep -qP x 2>/dev/null || { err "grep -P (PCRE) not available"; exit 1;
 export WORKSHOP_PREFIX="team-test"
 export GITHUB_MCP_IMAGE="ghcr.io/github/github-mcp-server:v0.0.0"
 export GH_PAT="x-render-check-token"
-SUBST_VARS='${GITHUB_MCP_IMAGE} ${GH_PAT} ${WORKSHOP_PREFIX}'
+# 00-modelconfig.yaml templates the LLM proxy base URL (ISI-6996); mirror
+# install-agents.sh's SUBST_VARS so the render gate resolves it too.
+export WORKSHOP_LLM_BASE_URL="https://llm-proxy.example/v1"
+SUBST_VARS='${GITHUB_MCP_IMAGE} ${GH_PAT} ${WORKSHOP_PREFIX} ${WORKSHOP_LLM_BASE_URL}'
 
 # The manifest files install-agents.sh actually applies (NOT kustomization.yaml,
 # which is kustomize config and never applied as a resource).

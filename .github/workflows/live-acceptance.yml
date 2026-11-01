@@ -40,8 +40,10 @@
 #       template — collector stamp, optimization DQL filters, agent/MCP CRs;
 #     - a LIVE assertion inspects the APPLIED collector + kagent CRs and fails
 #       if a present resource is mis-prefixed (absent => warn, as a degraded run).
-#   WORKSHOP_PREFIX is also now REQUIRED by cluster/install.sh (fail-closed), so
-#   it is set in the env block below — the bootstrap would abort without it.
+#   WORKSHOP_PREFIX is set explicitly in the env block below so WS5 can assert a
+#   known value end-to-end. (If unset, cluster/install.sh now auto-derives a valid
+#   per-attendee prefix rather than aborting — ISI-7005 — but CI pins it to get a
+#   deterministic value to assert against.)
 
 name: live-acceptance (ISI-6835 §5 + ISI-6986 WS5 prefix)
 
@@ -61,9 +63,9 @@ jobs:
     env:
       CLUSTER_TOOL: kind
       CLUSTER_NAME: workshop
-      # WORKSHOP_PREFIX — REQUIRED by cluster/install.sh since ISI-6986 (it
-      # fail-closes without it) and the value WS5 asserts end-to-end. A dashed
-      # worst-case test prefix exercises the name-boundary logic. Must match
+      # WORKSHOP_PREFIX — pinned so WS5 can assert it end-to-end (install.sh
+      # auto-derives one when unset since ISI-7005, but CI needs a deterministic
+      # value). A dashed test prefix exercises the name-boundary logic. Must match
       # ^[a-z][a-z0-9-]{1,18}$ (see .devcontainer/bootstrap/lib.sh).
       WORKSHOP_PREFIX: ci-accept
       # --- Pinned toolchain versions — KEEP IN SYNC with .devcontainer/Dockerfile ARGs ---

@@ -8,6 +8,12 @@ source "${SCRIPT_DIR}/bootstrap/lib.sh"
 
 log "postCreate: engine=${CLUSTER_TOOL} cluster=${CLUSTER_NAME}"
 
+# Resolve the shared-tenant isolation prefix ONCE, up front, and export it
+# (ISI-7005). A valid explicit value wins; otherwise it is derived from the
+# Codespace identity so the stack still deploys. Exporting here means the child
+# install.sh / check-secrets.sh and the banner below all agree on one value.
+resolve_workshop_prefix
+
 # 1. Verify the REQUIRED toolchain baked into the image is present.
 #    Only the tools the bootstrap genuinely cannot proceed without are fatal.
 #    mkdocs (local docs preview) and dt-evals (Phase 4, npx fallback exists) are
@@ -80,9 +86,9 @@ if [ -n "${WORKSHOP_PREFIX:-}" ] && valid_workshop_prefix "${WORKSHOP_PREFIX}"; 
   echo
   echo "   (or scope by service.name == \"${WORKSHOP_PREFIX}-sre-agent\")."
 else
-  warn "WORKSHOP_PREFIX is unset or invalid — the install chain will not render until you fix it."
-  echo "   Set it in the 'Create codespace with options…' dialog (lowercase label, e.g. team-alpha),"
-  echo "   then rebuild. Format: ${WORKSHOP_PREFIX_PATTERN}."
+  # Unreachable in practice — resolve_workshop_prefix above always yields a valid
+  # value. Kept as a defensive fallback message.
+  warn "WORKSHOP_PREFIX could not be resolved — set it in the 'Create codespace with options…' dialog (lowercase label, e.g. team-alpha), then rebuild. Format: ${WORKSHOP_PREFIX_PATTERN}."
 fi
 echo
 echo " Instructions (onboarding + per-module steps):"
