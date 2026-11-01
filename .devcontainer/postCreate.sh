@@ -23,6 +23,16 @@ have dt-evals && ok "tool: dt-evals" || warn "dt-evals not on PATH — run-dt-ev
 # 2. Create (or reuse) the kind cluster (NodePort port-mappings → forwarded ports).
 bash "${SCRIPT_DIR}/bootstrap/create-cluster.sh"
 
+# 2b. Dispense the per-attendee model-proxy key (ISI-6996). Using ONLY the room
+#     password, fetch this attendee's LiteLLM-proxy endpoint + a minted, budget-capped
+#     virtual key and write .workshop-llm.env — which versions.env (→ install.sh /
+#     install-agents.sh) and ~/.bashrc then source so ALL DeepSeek traffic routes
+#     through the proxy with no raw key anywhere. Non-fatal: a missing password or an
+#     unreachable host just means the agents/evals have no key (rest still installs).
+#     MUST run before install.sh so secrets.sh picks up the dispensed key.
+bash "${SCRIPT_DIR}/bootstrap/dispense-llm.sh" || \
+  warn "model-proxy dispense skipped/failed — set WORKSHOP_ROOM_PASSWORD and re-run 'bash .devcontainer/bootstrap/dispense-llm.sh' then 'bash cluster/install.sh'"
+
 # 3. Deploy the full workshop platform. Non-fatal: a single failing component
 #    (e.g. a missing secret) must never brick the Codespace — install.sh degrades
 #    gracefully and per-component INSTALL_<COMPONENT>=false toggles still apply.
