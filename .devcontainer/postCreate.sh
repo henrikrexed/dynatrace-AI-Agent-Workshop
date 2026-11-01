@@ -50,3 +50,31 @@ cat <<'EOF'
    mkdocs serve -a 0.0.0.0:8000      # workshop site on forwarded port 8000 (optional)
 ================================================================
 EOF
+
+# --- Shared-tenant isolation banner (ISI-6986 WS4) ---------------------------
+# Echo the resolved WORKSHOP_PREFIX, a ready-to-paste attendee-scoped DQL filter,
+# and a link back to the published onboarding page ("Start the benchmark"). This
+# is the first thing an attendee confirms on a shared Dynatrace tenant: every
+# dashboard/eval/DQL they run should carry this filter so they see only their data.
+ONBOARDING_URL="https://henrikrexed.github.io/dynatrace-AI-Agent-Workshop/start-benchmark/"
+echo
+echo "================================================================"
+echo " Your shared-tenant isolation prefix"
+if [ -n "${WORKSHOP_PREFIX:-}" ] && valid_workshop_prefix "${WORKSHOP_PREFIX}"; then
+  ok   "WORKSHOP_PREFIX = ${WORKSHOP_PREFIX}"
+  echo
+  echo "   Your agents' spans arrive as service.name = ${WORKSHOP_PREFIX}-sre-agent."
+  echo "   Add this filter to any Dynatrace Notebook / dashboard query to see ONLY your data:"
+  echo
+  echo "     | filter workshop.attendee == \"${WORKSHOP_PREFIX}\""
+  echo
+  echo "   (or scope by service.name == \"${WORKSHOP_PREFIX}-sre-agent\")."
+else
+  warn "WORKSHOP_PREFIX is unset or invalid — the install chain will not render until you fix it."
+  echo "   Set it in the 'Create codespace with options…' dialog (lowercase label, e.g. team-alpha),"
+  echo "   then rebuild. Format: ${WORKSHOP_PREFIX_PATTERN}."
+fi
+echo
+echo " Instructions (onboarding + per-module steps):"
+echo "   ${ONBOARDING_URL}"
+echo "================================================================"

@@ -194,6 +194,25 @@ shows up in your **Dynatrace** dashboards and in **Phoenix**, long before a pod
 list would hint at anything wrong. That signal is the *symptom*; the agent's job
 is to find the *cause* in cluster state.
 
+!!! note "Shared tenant — scope the symptom to your own data"
+    On the shared workshop tenant everyone's `otel-demo` traffic lands in the same
+    streams. The gateway collector stamps every signal with
+    `workshop.attendee == "<your-prefix>"` (the `WORKSHOP_PREFIX` you set at
+    Codespace create — `echo $WORKSHOP_PREFIX`), so add that filter to any
+    Dynatrace Notebook or dashboard query to see **only your** product-path errors.
+    For example, to confirm the intermittent 5xx is yours before you ask the agent:
+
+    ```dql
+    fetch spans
+    | filter workshop.attendee == "${WORKSHOP_PREFIX}" and k8s.namespace.name == "otel-demo"
+    | filter request.is_failed == true
+    | summarize failures = count(), by: { span.name }
+    ```
+
+    Replace `${WORKSHOP_PREFIX}` with your prefix. The same
+    `workshop.attendee == "<your-prefix>"` filter scopes every DQL and Phoenix query
+    in [06 — Evaluate](06-evaluate.md) and [07 — Optimize](07-optimize.md).
+
 ```bash
 bash scenarios/run.sh inject 12      # adds a faulty product-catalog backend (via inject.sh)
 ```
