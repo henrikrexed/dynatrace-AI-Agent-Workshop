@@ -941,10 +941,20 @@ cheap agent that gives wrong answers.</p>
 data on screen:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>dtctl<span class="w"> </span>config<span class="w"> </span>use-context<span class="w"> </span>&lt;your-tenant&gt;
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>cluster/dynatrace/optimization
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>dtctl<span class="w"> </span>create<span class="w"> </span>notebook<span class="w"> </span>-f<span class="w"> </span>ai-agent-workflow-steps.notebook.yaml
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>dtctl<span class="w"> </span>apply<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization.dashboard.yaml
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>dtctl<span class="w"> </span>create<span class="w"> </span>notebook<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization-before-after.notebook.yaml
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>:<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">WORKSHOP_PREFIX</span><span class="p">:?set your attendee prefix first</span><span class="si">}</span><span class="s2">"</span><span class="w">   </span><span class="c1"># shared-tenant scope</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># The assets filter on workshop.attendee == "${WORKSHOP_PREFIX}" — render it in</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># before deploying (scoped envsubst leaves the files' other $refs untouched):</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>mkdir<span class="w"> </span>-p<span class="w"> </span>.rendered
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>ai-agent-workflow-steps.notebook.yaml<span class="w"> </span>ai-agent-optimization.dashboard.yaml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">         </span>ai-agent-optimization-before-after.notebook.yaml<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span>envsubst<span class="w"> </span><span class="s1">'${WORKSHOP_PREFIX}'</span><span class="w"> </span>&lt;<span class="w"> </span><span class="s2">"</span><span class="nv">$f</span><span class="s2">"</span><span class="w"> </span>&gt;<span class="w"> </span><span class="s2">".rendered/</span><span class="nv">$f</span><span class="s2">"</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="k">done</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>dtctl<span class="w"> </span>create<span class="w"> </span>notebook<span class="w"> </span>-f<span class="w"> </span>.rendered/ai-agent-workflow-steps.notebook.yaml
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>dtctl<span class="w"> </span>apply<span class="w">       </span>-f<span class="w"> </span>.rendered/ai-agent-optimization.dashboard.yaml
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>dtctl<span class="w"> </span>create<span class="w"> </span>notebook<span class="w"> </span>-f<span class="w"> </span>.rendered/ai-agent-optimization-before-after.notebook.yaml
 </code></pre></div>
+<p>See <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/dynatrace/optimization/README.md"><code>cluster/dynatrace/optimization/README.md</code></a>
+for the guardian + workflow (they render the same way).</p>
 <ul>
 <li><strong>Notebook — <em>Read an AI Agent Run</em></strong> (<code>ai-agent-workflow-steps</code>): walks one
   run from the crew list down to the per-hop token bill — the understand-first
@@ -994,13 +1004,23 @@ emits:</p>
   crew.</li>
 <li>Order events by <code>start_time</code> (<code>timestamp</code> is null on these spans).</li>
 </ul>
+<div class="admonition tip">
+<p class="admonition-title">Shared tenant — scope every query to your prefix</p>
+<p>The workshop shares one Dynatrace tenant across all attendees, so every query
+below is scoped with <code>workshop.attendee == "${WORKSHOP_PREFIX}"</code> (the collector
+stamps this attribute on all your telemetry) and the SRE agent arrives as
+<code>service.name == "${WORKSHOP_PREFIX}-sre-agent"</code>. When you paste a snippet into a
+Dynatrace Notebook, <strong>replace <code>${WORKSHOP_PREFIX}</code> with your own prefix</strong> — the
+value you set at Codespace create (<code>echo $WORKSHOP_PREFIX</code>). Without it you would
+see the whole class's data mixed together.</p>
+</div>
 <h3 id="1-who-is-in-the-crew">1 · Who is in the crew<a class="headerlink" href="#1-who-is-in-the-crew" title="Permanent link">&para;</a></h3>
 <p><strong>What you're seeing:</strong> your agents. Every service in the <code>kagent</code> namespace that
 actually makes an LLM call is an agent (the <code>llmCalls &gt; 0</code> filter drops the
 <code>kagent-controller</code> plumbing). <code>llmCalls</code> is how often it reasoned; <code>toolCalls</code>
 how often it acted.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>fetch spans
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>| filter service.namespace == "kagent"
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>| summarize spans = count(),
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    llmCalls = countIf(gen_ai.operation.name == "generate_content"),
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    toolCalls = countIf(gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"),
@@ -1015,7 +1035,7 @@ handful of activities — it <strong>reasons</strong> (<code>generate_content</c
 (<code>execute_tool</code>), and <strong>talks to other agents</strong> (<code>a2a.*</code> + <code>invoke_agent</code>).
 Everything else is the <code>Other</code> bucket you can ignore while reading the run.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>fetch spans
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>| filter service.namespace == "kagent"
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>| fieldsAdd activity = if(gen_ai.operation.name == "generate_content", "LLM call (generate_content)",
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    else: if(gen_ai.operation.name == "execute_tool", "Tool call (execute_tool)",
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    else: if(gen_ai.operation.name == "invoke_agent", "Agent invocation (invoke_agent)",
@@ -1032,10 +1052,10 @@ interesting example) and joins its spans back on <code>gen_ai.task.id</code>. Re
 top-to-bottom: an LLM call, then the tools it decided to run, then the next LLM
 call. <code>kagent__NS__&lt;agent&gt;</code> tools are hand-offs to sub-agents (see step 4).</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>fetch spans
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>| filter service.namespace == "kagent"
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>| join [
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    fetch spans
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    | summarize hops = count(), by:{gen_ai.task.id}
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    | sort hops desc, gen_ai.task.id asc
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    | limit 1
@@ -1054,7 +1074,7 @@ prefix gives the edge <code>fromAgent → toAgent</code>. Hand-offs cross <code>
 they are correlated by <code>trace.id</code>, not by a single <code>gen_ai.task.id</code>. The
 orchestrator is usually the hub that fans work out to the specialists.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>fetch spans
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>| filter service.namespace == "kagent" and gen_ai.operation.name == "execute_tool"
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "execute_tool"
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>| filter startsWith(gen_ai.tool.name, "kagent__")
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>| fieldsAdd callee = replaceString(gen_ai.tool.name, "kagent__NS__", "")
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>| summarize handoffs = count(), by:{fromAgent = service.name, toAgent = callee}
@@ -1074,7 +1094,7 @@ until the crew has run. To populate it:</p>
    widen it or re-run after the crew has executed within the window.</li>
 <li>Confirm <em>any</em> <code>kagent__</code> spans exist at all:
    <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>fetch spans
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>| filter service.namespace == "kagent" and startsWith(gen_ai.tool.name, "kagent__")
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and startsWith(gen_ai.tool.name, "kagent__")
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>| summarize count(), by:{gen_ai.tool.name}
 </code></pre></div>
    No rows means no crew hand-offs have happened yet.</li>
@@ -1089,10 +1109,10 @@ conversation back to the model. A flat line means a tight agent; a staircase mea
 a context that never gets trimmed. That growth is exactly the chatty-workflow lever
 in <a href="#c-fix-chatty-workflows">§2c</a> below.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>fetch spans
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>| filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>| join [
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    fetch spans
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
 <a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    | summarize hops = count(), by:{gen_ai.task.id}
 <a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    | sort hops desc, gen_ai.task.id asc
 <a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    | limit 1
@@ -1109,10 +1129,10 @@ diagnostic call. Compare this list against each agent's <em>granted</em> tools: 
 that never appear here are the never-called overhead you drop in
 <a href="#a-remove-tools-the-agent-never-uses">§2a</a> below.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>fetch spans
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>| filter service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>| join [
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    fetch spans
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
 <a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    | summarize hops = count(), by:{gen_ai.task.id}
 <a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    | sort hops desc, gen_ai.task.id asc
 <a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    | limit 1
@@ -1130,10 +1150,10 @@ reference tenant that was ~182k input vs ~14k output across 10 hops (≈13:1), w
 the last hop costing several times the first purely because the context grew. That
 is why trimming the loop (step 5) beats trimming almost anything else.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>fetch spans
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>| filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>| join [
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    fetch spans
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    | filter service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and gen_ai.operation.name == "generate_content"
 <a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    | summarize hops = count(), by:{gen_ai.task.id}
 <a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    | sort hops desc, gen_ai.task.id asc
 <a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    | limit 1
@@ -1150,7 +1170,7 @@ its tokens are high. That is the ranking the rest of this page acts on.</p>
 total tokens and estimated cost per run. Start at the top of that list; a 20%
 cut on your priciest agent beats a 50% cut on a rarely-used one.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>fetch spans
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
 <a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>| summarize llmCalls = count(),
 <a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    inputTokens  = sum(gen_ai.usage.input_tokens),
 <a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    outputTokens = sum(gen_ai.usage.output_tokens),
@@ -1219,7 +1239,7 @@ anything never called is pure overhead.</p>
 agent so you see the whole crew at once), then diff against each agent's granted
 set:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>fetch spans
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>| filter service.namespace == "kagent"
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
 <a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>| summarize calls = count(), by:{agent = service.name, tool = gen_ai.tool.name}
 <a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>| sort agent asc, calls desc
@@ -1266,8 +1286,8 @@ never-called tool into a <code>0</code>, and the <code>verdict</code> column fla
 <a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>     record(tool = "k8s_execute_command")
 <a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a>| lookup [
 <a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>    fetch spans
-<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>    | filter service.namespace == "kagent"
-<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a>        and service.name == "seta_sre_investigator"
+<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>    | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
+<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a>        and service.name == "${WORKSHOP_PREFIX}-sre-agent"
 <a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a>        and gen_ai.operation.name == "execute_tool"
 <a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a>        and gen_ai.tool.name != "(merged tools)"
 <a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a>    | summarize calls = count(), by:{tool = gen_ai.tool.name}
@@ -1277,7 +1297,7 @@ never-called tool into a <code>0</code>, and the <code>verdict</code> column fla
 <a id="__codelineno-12-26" name="__codelineno-12-26" href="#__codelineno-12-26"></a>| fieldsRemove called_tool, called_calls
 <a id="__codelineno-12-27" name="__codelineno-12-27" href="#__codelineno-12-27"></a>| sort calls asc
 </code></pre></div>
-<p>The <code>service.name == "seta_sre_investigator"</code> filter here is <strong>intentional</strong>:
+<p>The <code>service.name == "${WORKSHOP_PREFIX}-sre-agent"</code> filter here is <strong>intentional</strong>:
 coverage is a per-agent question ("which of <em>this</em> agent's granted tools did
 <em>this</em> agent never call"). To cover another agent, swap the service name and the
 <code>data record(...)</code> block for that agent's rows from the lookup file. The
@@ -1300,7 +1320,7 @@ calls a task took. Redundant hand-offs, an agent that re-reads context it alread
 has, or a loop that retries silently all show up as extra <code>gen_ai</code> spans. Collapse
 the hops that don't earn their tokens.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>fetch spans
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
 <a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>| summarize llmCalls = count(), inputTokens = sum(gen_ai.usage.input_tokens),
 <a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    by:{agent = service.name, task = gen_ai.task.id}
 <a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>| filter llmCalls &gt;= 5
@@ -1330,7 +1350,7 @@ number that moves — average input tokens per LLM call, <strong>per agent</stro
 section time-picker is how you switch the <em>before</em> and <em>after</em> windows. Read the
 row for the agent you changed and compare it across the two windows:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>fetch spans
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
 <a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>| summarize llmCalls = count(),
 <a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    avgInputPerCall    = round(avg(gen_ai.usage.input_tokens)),
 <a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    medianInputPerCall = round(median(gen_ai.usage.input_tokens)),

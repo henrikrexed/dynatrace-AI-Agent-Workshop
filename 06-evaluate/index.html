@@ -869,26 +869,35 @@ DeepSeek</strong> and it behaves the same from there on.</p>
 start with <strong>hallucination</strong> (is the answer grounded in the tool output it was
 given?) or <strong>relevance</strong> (does it actually answer the question?).</p>
 <ol>
-<li><strong>Pick the traces.</strong> Open your project's <strong>Traces</strong> table and select the
-   SRE-agent runs you want to grade (filter to the <code>agent.run</code> / LLM spans so each
-   example carries a clean question → answer pair).</li>
-<li><strong>Capture them as a dataset.</strong> Use <strong>Add to Dataset</strong> to save the selected
+<li>
+<p><strong>Pick the traces.</strong> Open your project's <strong>Traces</strong> table and select the
+   SRE-agent runs you want to grade. Filter to the LLM spans so each example
+   carries a clean question → answer pair — paste this into the Traces filter bar:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>span_kind == 'LLM' and attributes['service.name'] == '${WORKSHOP_PREFIX}-sre-agent'
+</code></pre></div>
+<p><code>${WORKSHOP_PREFIX}</code> is the prefix you set at Codespace create (<code>echo
+$WORKSHOP_PREFIX</code>); on the shared workshop tenant it is what makes the SRE
+agent's spans arrive as <code>${WORKSHOP_PREFIX}-sre-agent</code>. Phoenix itself is
+per-attendee (local), so the <code>span_kind == 'LLM'</code> clause is the one that
+matters most here — it drops the tool/chain spans and leaves clean
+question → answer pairs — but keeping the service-name clause makes the same
+filter copy-paste-identical to the Dynatrace queries later in this module.
+2. <strong>Capture them as a dataset.</strong> Use <strong>Add to Dataset</strong> to save the selected
    spans as a dataset — each example keeps the span's <strong>Input</strong> (the question) and
-   <strong>Output</strong> (the agent's answer). This is the set the judge will score.</li>
-<li><strong>Add an LLM evaluator.</strong> Open the new dataset → <strong>Evaluators</strong> tab →
-   <strong>Add evaluator</strong> → <strong>LLM</strong>. Phoenix opens it in the <strong>Playground</strong>:<ul>
-<li><strong>Model:</strong> DeepSeek (the only provider in the menu — already keyed).</li>
-<li><strong>Template:</strong> write the judge prompt, e.g. <em>“You are grading whether the
+   <strong>Output</strong> (the agent's answer). This is the set the judge will score.
+3. <strong>Add an LLM evaluator.</strong> Open the new dataset → <strong>Evaluators</strong> tab →
+   <strong>Add evaluator</strong> → <strong>LLM</strong>. Phoenix opens it in the <strong>Playground</strong>:
+ - <strong>Model:</strong> DeepSeek (the only provider in the menu — already keyed).
+ - <strong>Template:</strong> write the judge prompt, e.g. <em>“You are grading whether the
    ANSWER is grounded in the provided CONTEXT/question. Reply with a single
    label: <code>hallucinated</code> or <code>factual</code>.”</em> (or a relevance rubric:
-   <code>relevant</code> / <code>irrelevant</code>).</li>
-<li><strong>Input mapping:</strong> map the template's <code>{question}</code> / <code>{answer}</code> variables
-   to the dataset's <strong>input</strong> / <strong>output</strong> fields.</li>
-<li><strong>Test</strong> it on one example to see the label + explanation, then <strong>Save</strong>.</li>
-</ul>
+   <code>relevant</code> / <code>irrelevant</code>).
+ - <strong>Input mapping:</strong> map the template's <code>{question}</code> / <code>{answer}</code> variables
+   to the dataset's <strong>input</strong> / <strong>output</strong> fields.
+ - <strong>Test</strong> it on one example to see the label + explanation, then <strong>Save</strong>.
+4. <strong>Run it.</strong> From the dataset, <strong>Run</strong> an experiment in the Playground. Phoenix
+   calls the DeepSeek judge <strong>server-side</strong> over every example — no local runtime.</p>
 </li>
-<li><strong>Run it.</strong> From the dataset, <strong>Run</strong> an experiment in the Playground. Phoenix
-   calls the DeepSeek judge <strong>server-side</strong> over every example — no local runtime.</li>
 </ol>
 <h3 id="read-the-scores">Read the scores<a class="headerlink" href="#read-the-scores" title="Permanent link">&para;</a></h3>
 <p>The experiment's results table gains one <strong>label / score column per evaluator</strong>.
@@ -901,11 +910,11 @@ visual, and the recommended way to grade these agents.</p>
 script that builds the same two classifiers (<strong>hallucination</strong> + <strong>relevance</strong>)
 from code — handy for CI, for grading the <strong>live</strong> spans in place, or when you
 have no traffic yet:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># Bundled sample dataset — no cluster/traffic needed (just a judge key):</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Live spans pulled from Phoenix, scores logged back onto the traces:</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py<span class="w"> </span>--from-phoenix
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>evals<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>uv<span class="w"> </span>sync
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="c1"># Bundled sample dataset — no cluster/traffic needed (just a judge key):</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Live spans pulled from Phoenix, scores logged back onto the traces:</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_phoenix_eval.py<span class="w"> </span>--from-phoenix
 </code></pre></div>
 <p>It prints a per-metric summary, writes <code>phoenix/out/phoenix_eval_results.csv</code>,
 and (with <code>--from-phoenix</code>) annotates the originating spans so the labels show up
@@ -973,16 +982,16 @@ on <strong>which metrics</strong>, failing <strong>when</strong>:</p>
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">scope</span><span class="p">:</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${DT_EVAL_SERVICE}</span><span class="w">   </span><span class="c1"># which agent's spans — you set this below</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">since</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2h</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">sampling</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> strategy</span><span class="p">:</span><span class="w"> </span><span class="nv">latest</span><span class="p p-Indicator">,</span><span class="nt"> count</span><span class="p">:</span><span class="w"> </span><span class="nv">25</span><span class="w"> </span><span class="p p-Indicator">}</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="nt">metrics</span><span class="p">:</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">relevance</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">faithfulness</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">hallucination</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">coherence</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">toxicity</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">prompt-injection</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="nt">alerts</span><span class="p">:</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">thresholds</span><span class="p">:</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="nt">hallucination</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w">            </span><span class="c1"># fail if ANY hallucination is detected</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="nt">relevance</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.6</span><span class="w">              </span><span class="c1"># fail below 0.6</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">scope</span><span class="p">:</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">service</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${DT_EVAL_SERVICE}</span><span class="w">   </span><span class="c1"># which agent's spans — you set this below</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">since</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2h</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">sampling</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{</span><span class="nt"> strategy</span><span class="p">:</span><span class="w"> </span><span class="nv">latest</span><span class="p p-Indicator">,</span><span class="nt"> count</span><span class="p">:</span><span class="w"> </span><span class="nv">25</span><span class="w"> </span><span class="p p-Indicator">}</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nt">metrics</span><span class="p">:</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">relevance</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">faithfulness</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">hallucination</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">coherence</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">toxicity</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">prompt-injection</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="nt">alerts</span><span class="p">:</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="nt">thresholds</span><span class="p">:</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">    </span><span class="nt">hallucination</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w">            </span><span class="c1"># fail if ANY hallucination is detected</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="nt">relevance</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.6</span><span class="w">              </span><span class="c1"># fail below 0.6</span>
 </code></pre></div>
 <p><strong>Author it in two edits.</strong> Point <code>scope</code> at <em>your</em> agent by setting
 <code>DT_EVAL_SERVICE</code> (it fills <code>scope.service</code> at render time — discover it, don't
@@ -994,15 +1003,17 @@ answers. Those two edits <em>are</em> the evaluation; the run below just execute
 a judge key (a DeepSeek key works). For the exact scopes and where each token is
 generated, see
 <strong><a href="../start-benchmark/#4-create-the-required-tokens">Start the benchmark → Create the required tokens</a></strong>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">DT_EVAL_SERVICE</span><span class="o">=</span><span class="s2">"sre-agent"</span><span class="w">   </span><span class="c1"># the service.name you discovered</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>./run-dt-eval.sh<span class="w">                     </span><span class="c1"># renders the config, then runs validate + run</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="c1"># DT_EVAL_SERVICE defaults to ${WORKSHOP_PREFIX}-sre-agent when WORKSHOP_PREFIX is</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># set (the shared-tenant prefix from Codespace create) — export it only to override:</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># export DT_EVAL_SERVICE="${WORKSHOP_PREFIX}-sre-agent"</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>./run-dt-eval.sh<span class="w">                     </span><span class="c1"># renders the config, then runs validate + run</span>
 </code></pre></div>
 <p>The run exits non-zero on a threshold breach — a ready-made CI gate. Read the
 scores back in a Dynatrace Notebook:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>fetch bizevents
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>| filter event.type == "gen_ai.evaluation.result"
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>fetch bizevents
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>| filter event.type == "gen_ai.evaluation.result"
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
 </code></pre></div>
 <p>Details, including the shared-vs-per-attendee tenant model:
 <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/README.md"><code>evals/dt-evals/README.md</code></a>.</p>
@@ -1025,8 +1036,8 @@ forbidden cross-channel claims?</p>
 <code>OOMKilled</code> status), a cross-channel claim is an unambiguous fail — so this grades
 objectively, even with no judge model.</p>
 <h3 id="deterministic-grade-offline-no-key-recommended">Deterministic grade (offline, no key) — recommended<a class="headerlink" href="#deterministic-grade-offline-no-key-recommended" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">cd</span><span class="w"> </span>evals
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_diagnosis_eval.py<span class="w">        </span><span class="c1"># bundled golden + confab diagnoses</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>evals
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </span>phoenix/run_diagnosis_eval.py<span class="w">        </span><span class="c1"># bundled golden + confab diagnoses</span>
 </code></pre></div>
 <p>It prints a PASS/FAIL per diagnosis and writes
 <code>phoenix/out/diagnosis_eval_results.csv</code>. Add <code>--llm-judge</code> (needs a judge key) to
@@ -1052,11 +1063,11 @@ custom-evaluator store; enabling it means uncommenting its line under
 <code>metrics.enabled</code> (and the matching <code>alerts.thresholds</code>) in
 <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/scenario-diagnosis.dt-eval.yaml"><code>scenario-diagnosis.dt-eval.yaml</code></a>;
 then run scoped to the one scenario you diagnosed:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="c1"># Register once — paste the judge prompt from evaluators/diagnosis-01-crashloopbackoff.md</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>./run-dt-eval.sh<span class="w"> </span>evaluators<span class="w"> </span>add
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Then grade the diagnosis spans for that scenario:</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>./run-dt-eval.sh<span class="w"> </span>--config<span class="w"> </span>scenario-diagnosis.dt-eval.yaml<span class="w"> </span>--metric<span class="w"> </span>diagnosis-01-crashloopbackoff
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">cd</span><span class="w"> </span>evals/dt-evals
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="c1"># Register once — paste the judge prompt from evaluators/diagnosis-01-crashloopbackoff.md</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>./run-dt-eval.sh<span class="w"> </span>evaluators<span class="w"> </span>add
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Then grade the diagnosis spans for that scenario:</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>./run-dt-eval.sh<span class="w"> </span>--config<span class="w"> </span>scenario-diagnosis.dt-eval.yaml<span class="w"> </span>--metric<span class="w"> </span>diagnosis-01-crashloopbackoff
 </code></pre></div>
 <p>Swap in the evaluator name for the scenario you ran —
 <code>diagnosis-01-crashloopbackoff</code>, <code>diagnosis-02-imagepullbackoff</code>,
