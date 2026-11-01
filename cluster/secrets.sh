@@ -35,6 +35,17 @@ warn() { printf '\033[1;33m[ warn ]\033[0m %s\n' "$*" >&2; }
 
 apply_secret() { kubectl apply -f - >/dev/null; }
 
+# --- WORKSHOP_PREFIX guard (ISI-6986) ---------------------------------------
+# REQUIRED + fail-closed. Secret names/labels get prefixed with it downstream
+# (WS2/WS3) to isolate this attendee on the shared tenant. Validate + export here
+# so a standalone run of this script fails fast instead of rendering an unresolved
+# ${WORKSHOP_PREFIX}. No silent fallback, no auto-derive.
+if ! [[ "${WORKSHOP_PREFIX:-}" =~ ^[a-z][a-z0-9-]{1,18}$ ]]; then
+  warn "WORKSHOP_PREFIX unset or invalid ('${WORKSHOP_PREFIX:-}') — set it in the Codespace secrets (lowercase, start with a letter, 2-19 chars of a-z 0-9 '-', e.g. team-alpha) and re-run."
+  exit 1
+fi
+export WORKSHOP_PREFIX
+
 # --- Dynatrace token secret -------------------------------------------------
 # The operator convention: the secret name MUST match the DynaKube name ("dynakube").
 # apiToken = operator (DYNATRACE_API_TOKEN); dataIngestToken = ingest (DT_API_TOKEN).

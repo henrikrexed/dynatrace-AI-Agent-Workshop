@@ -32,6 +32,16 @@ kubectl cluster-info >/dev/null 2>&1 || { err "cluster not reachable — run .de
 command -v helm >/dev/null || { err "helm not found"; exit 1; }
 command -v envsubst >/dev/null || warn "envsubst not found — Dynatrace apiUrl substitution will be skipped"
 
+# WORKSHOP_PREFIX — REQUIRED + fail-closed (ISI-6986). Downstream manifests template
+# namespaces + OTel attributes with it to isolate this attendee on the shared tenant.
+# Exported so the bare envsubst at the DynaKube step (and secrets.sh below) resolve
+# it; abort now rather than render an unresolved ${WORKSHOP_PREFIX}. No auto-derive.
+if ! [[ "${WORKSHOP_PREFIX:-}" =~ ^[a-z][a-z0-9-]{1,18}$ ]]; then
+  err "WORKSHOP_PREFIX unset or invalid ('${WORKSHOP_PREFIX:-}') — set it in the Codespace secrets (lowercase, start with a letter, 2-19 chars of a-z 0-9 '-', e.g. team-alpha) and re-run."
+  exit 1
+fi
+export WORKSHOP_PREFIX
+
 # prep-stack.sh (Phase 1) already created namespaces + classic helm repos. Make
 # this script self-sufficient too (safe if already done).
 for ns in dynatrace opentelemetry-operator-system kagent tetragon agent-sandbox phoenix; do
