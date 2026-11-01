@@ -29,7 +29,11 @@ dynatrace:
 judge:
   provider: openai
   model: deepseek-chat
-  baseUrl: https://api.deepseek.com
+  # Injected by run-dt-eval.sh (envsubst) from WORKSHOP_LLM_BASE_URL_NOV1 — the bare
+  # (no-/v1) DeepSeek endpoint by default, or the per-attendee LiteLLM-proxy endpoint
+  # when a room password dispensed one (ISI-6996). apiKey is the minted virtual key
+  # in the proxy case (OPENAI_API_KEY falls back to DEEPSEEK_API_KEY / LLM_API_KEY).
+  baseUrl: ${WORKSHOP_LLM_BASE_URL_NOV1}
   apiKey: ${OPENAI_API_KEY}
   timeout: 60000
   maxRetries: 2

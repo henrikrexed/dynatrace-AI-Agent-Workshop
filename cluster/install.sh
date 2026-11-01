@@ -145,9 +145,16 @@ if [ "$INSTALL_KAGENT" = "true" ]; then
   log "4/6  kagent (clean base — no default agents/tools)"
   helm upgrade --install kagent-crds "${KAGENT_OCI_REPO}/kagent-crds" \
     --version "${KAGENT_CHART_VERSION}" --namespace kagent --wait --timeout 5m
+  # The chart's default ModelConfig base URL/model come from values.yaml (DeepSeek);
+  # override them here with WORKSHOP_LLM_* (versions.env) so when a room password
+  # dispensed a LiteLLM-proxy endpoint (ISI-6996) the chart default routes through
+  # the proxy too — D3: ALL DeepSeek traffic via the proxy, no raw key anywhere.
   helm upgrade --install kagent "${KAGENT_OCI_REPO}/kagent" \
     --version "${KAGENT_CHART_VERSION}" --namespace kagent \
-    -f "${SCRIPT_DIR}/kagent/values.yaml" --wait --timeout 5m
+    -f "${SCRIPT_DIR}/kagent/values.yaml" \
+    --set "providers.openAI.model=${WORKSHOP_LLM_MODEL}" \
+    --set "providers.openAI.config.baseUrl=${WORKSHOP_LLM_BASE_URL}" \
+    --wait --timeout 5m
   # Fixed-nodePort Service for the UI (chart 0.10.4 can't pin a nodePort itself).
   # kind maps nodePort 30080 -> forwarded Codespace port 8080.
   kubectl apply -f "${SCRIPT_DIR}/kagent/ui-nodeport.yaml" && ok "kagent UI NodePort (30080 -> localhost:8080) applied"
@@ -158,7 +165,17 @@ fi
 # ---------------------------------------------------------------------------
 if [ "$INSTALL_PHOENIX" = "true" ]; then
   log "5/6  Phoenix (LLM eval/trace UI)"
-  kubectl apply -f "${SCRIPT_DIR}/phoenix/phoenix.yaml"
+  # DEEPSEEK_BASE_URL in the manifest is injected from WORKSHOP_LLM_BASE_URL
+  # (versions.env) — DeepSeek by default, or the per-attendee LiteLLM-proxy
+  # endpoint when a room password dispensed one (ISI-6996). SCOPED envsubst: only
+  # ${WORKSHOP_LLM_BASE_URL} is substituted, leaving every other $ intact. Falls
+  # back to a plain apply if gettext is missing (manifest default base URL stands).
+  if command -v envsubst >/dev/null; then
+    envsubst '${WORKSHOP_LLM_BASE_URL}' < "${SCRIPT_DIR}/phoenix/phoenix.yaml" | kubectl apply -f -
+  else
+    warn "envsubst not found — applying Phoenix with its default (non-proxy) base URL"
+    kubectl apply -f "${SCRIPT_DIR}/phoenix/phoenix.yaml"
+  fi
   kubectl -n phoenix rollout status deploy/phoenix --timeout=180s || warn "Phoenix not ready yet"
 else
   warn "INSTALL_PHOENIX=false — skipping Phoenix"

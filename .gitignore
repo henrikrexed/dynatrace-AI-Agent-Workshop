@@ -14,6 +14,9 @@ kubeconfig*
 *.secret
 *-token
 *.pem
+# Dispensed per-attendee model-proxy endpoint + minted virtual key (ISI-6996);
+# written by .devcontainer/bootstrap/dispense-llm.sh from WORKSHOP_ROOM_PASSWORD.
+.workshop-llm.env
 
 # Python / uv / dt-evals
 .venv/
