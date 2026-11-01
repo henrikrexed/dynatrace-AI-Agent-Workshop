@@ -27,7 +27,14 @@
   // need not be declared; the installer prefers GH_PAT and falls back to it.
   // Preferred keys of each preferred/fallback pair are declared (check-secrets.sh
   // accepts either half).
+  // WORKSHOP_PREFIX is not a secret but GitHub only prompts for variables declared
+  // in this block, so it rides along here. It is REQUIRED and fail-closed (no
+  // default) — it isolates each attendee's objects on the shared Dynatrace tenant.
   "secrets": {
+    "WORKSHOP_PREFIX": {
+      "description": "REQUIRED. Your isolation prefix on the shared tenant. Lowercase, start with a letter, 2-19 chars of a-z 0-9 '-', e.g. team-alpha.",
+      "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
+    },
     "DT_TENANT_URL": {
       "description": "Dynatrace tenant URL for the Operator + OTLP export, e.g. https://abc12345.live.dynatrace.com",
       "documentationUrl": "https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"
