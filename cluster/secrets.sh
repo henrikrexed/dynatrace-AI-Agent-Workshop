@@ -86,7 +86,21 @@ if [ -n "${DT_TENANT_URL:-}" ] && [ -n "${DT_API_TOKEN:-}" ]; then
     --dry-run=client -o yaml | apply_secret
   ok "secret/dynatrace-otlp (opentelemetry-operator-system) upserted"
 else
-  warn "DT_TENANT_URL / DT_API_TOKEN not set — OTel gateway will export to Phoenix only (no Dynatrace)"
+  # No Dynatrace creds: the gateway must still come up and export to Phoenix.
+  # The collector config references ${env:DT_OTLP_ENDPOINT} / ${env:DT_API_TOKEN}
+  # (sourced from this secret); OTel's env-substitution HARD-FAILS at startup on
+  # an UNSET variable, so a missing secret crash-loops the whole collector — not
+  # the "Phoenix export keeps working regardless" the manifest promises
+  # (ISI-6869; surfaces as live-acceptance L3). Upsert a placeholder secret with
+  # an inert .invalid endpoint so the Dynatrace exporter initialises and simply
+  # drops (DNS-fails, logged, non-fatal) while the Phoenix pipeline runs. Real
+  # creds take the branch above and overwrite this. Zero effect on the
+  # authenticated path.
+  kubectl create secret generic dynatrace-otlp -n opentelemetry-operator-system \
+    --from-literal=endpoint="https://dynatrace-otlp-not-configured.invalid/api/v2/otlp" \
+    --from-literal=apiToken="OTLP-EXPORT-DISABLED-no-dt-credentials" \
+    --dry-run=client -o yaml | apply_secret
+  warn "DT_TENANT_URL / DT_API_TOKEN not set — OTel gateway exports to Phoenix only (placeholder dynatrace-otlp secret keeps the collector running; Dynatrace export disabled)"
 fi
 
 # --- kagent model-provider secret -------------------------------------------
