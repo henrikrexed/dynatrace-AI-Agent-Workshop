@@ -957,6 +957,11 @@ page above. Reference: GitHub's
 <td>The workshop <strong>room password</strong> from your host — the only model credential you supply. Unlocks the hosted proxy that powers the agents <em>and</em> the Phoenix / dt-evals judge. See token <strong>D</strong> below.</td>
 </tr>
 <tr>
+<td><code>WORKSHOP_DISPENSER_URL</code></td>
+<td style="text-align: center;">✅</td>
+<td>The <strong>dispenser URL</strong> from your host (given with the room password), e.g. <code>https://litellm-proxy.&lt;tailnet&gt;.ts.net/dispense</code>. Where the room password is exchanged for your model key. Part of token <strong>D</strong> below.</td>
+</tr>
+<tr>
 <td><code>GH_PAT</code></td>
 <td style="text-align: center;">✅</td>
 <td>GitHub fine-grained PAT for the demo write-back — token <strong>E</strong>.</td>
@@ -1051,6 +1056,10 @@ the real provider key lives only on the proxy host.</p>
 <ul>
 <li><strong>Get it:</strong> from your workshop host (chat, slide, or the landing page). Paste it
   verbatim as the <code>WORKSHOP_ROOM_PASSWORD</code> Codespace secret — don't quote or edit it.</li>
+<li><strong>Also set <code>WORKSHOP_DISPENSER_URL</code>:</strong> your host gives you the dispenser URL
+  (<code>https://litellm-proxy.&lt;tailnet&gt;.ts.net/dispense</code>) together with the password —
+  set it as a Codespace secret too. It is <strong>required</strong>: the repo contains no
+  dispenser host, so the bootstrap fails closed without it (ISI-7000).</li>
 <li><strong>Under the hood:</strong> the model is still DeepSeek (the cost-efficient default for
   the workshop), reached through a LiteLLM proxy. The full flow is in
   <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"><code>.devcontainer/SECRETS.md</code></a>.</li>

@@ -781,10 +781,11 @@ raw DeepSeek key in this (public) repo.</p>
   B -- "{proxy_url, virtual_key, model}" --&gt; A
   C -- "real DeepSeek key&lt;br/&gt;(host-only)" --&gt; D[api.deepseek.com]</code></pre>
 <ul>
-<li>The dispenser is exposed publicly over <strong>Tailscale Funnel</strong> (HTTPS) at the URL
-  baked into
-  <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/bootstrap/dispense-llm.sh"><code>dispense-llm.sh</code></a>
-  (<code>WORKSHOP_DISPENSER_URL</code>, default <code>https://litellm-proxy.&lt;tailnet&gt;.ts.net/dispense</code>).</li>
+<li>The dispenser is exposed publicly over <strong>Tailscale Funnel</strong> (HTTPS) at
+  <code>https://litellm-proxy.&lt;tailnet&gt;.ts.net/dispense</code>. This URL is <strong>not</strong> baked into
+  the repo — you distribute it to attendees as the required <code>WORKSHOP_DISPENSER_URL</code>
+  secret (alongside the room password); <code>dispense-llm.sh</code> fails closed without it
+  (ISI-7000).</li>
 <li>A valid <strong>room password</strong> → the dispenser mints a fresh, budget-capped virtual
   key scoped to the single <code>deepseek-chat</code> model and returns the proxy endpoint +
   key. The attendee's bootstrap writes them to the gitignored <code>.workshop-llm.env</code>.</li>
@@ -822,16 +823,20 @@ window is tight):</p>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>https://litellm-proxy.&lt;tailnet&gt;.ts.net/dispense
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># expect 200 {"proxy_url":"https://…","virtual_key":"sk-…","model":"deepseek-chat"}</span>
 </code></pre></div></li>
-<li><strong>Hand the room password to attendees</strong> (chat / slide / landing page). That is
-   the <em>only</em> model credential they need — they set it as the
-   <code>WORKSHOP_ROOM_PASSWORD</code> Codespace secret (token <strong>D</strong>).</li>
+<li><strong>Hand the room password AND the dispenser URL to attendees</strong> (chat / slide /
+   landing page). They set both as Codespace secrets — <code>WORKSHOP_ROOM_PASSWORD</code>
+   (the only model credential) and <code>WORKSHOP_DISPENSER_URL</code>
+   (<code>https://litellm-proxy.&lt;tailnet&gt;.ts.net/dispense</code>, your current Funnel host) —
+   together they are token <strong>D</strong>. The URL is a <strong>required</strong> secret, not a default:
+   nothing in the repo points at your proxy host (ISI-7000).</li>
 </ol>
 <div class="admonition tip">
 <p class="admonition-title">If an attendee's agents have no model key</p>
 <p>Have them re-run <code>bash .devcontainer/bootstrap/dispense-llm.sh</code> and then
 re-run <code>bash cluster/install.sh</code>. The usual cause is a wrong/stale room
-password (dispenser returns <code>401</code>) or the Funnel being down (returns <code>000</code> /
-unreachable).</p>
+password (dispenser returns <code>401</code>), a missing/typo'd <code>WORKSHOP_DISPENSER_URL</code>
+(bootstrap fails closed before any request), or the Funnel being down
+(returns <code>000</code> / unreachable).</p>
 </div>
 <hr />
 <h2 id="after-the-session-teardown">After the session (teardown)<a class="headerlink" href="#after-the-session-teardown" title="Permanent link">&para;</a></h2>
@@ -871,7 +876,7 @@ host avoids leaving a dangling public endpoint pointing at nothing.</p>
 <h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>
 <li><a href="../start-benchmark/#4-create-the-required-tokens">Start the benchmark → token <strong>D</strong></a> — the attendee-facing room-password step.</li>
-<li><a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"><code>.devcontainer/SECRETS.md</code></a> — the full secret contract and the <code>WORKSHOP_DISPENSER_URL</code> override.</li>
+<li><a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md"><code>.devcontainer/SECRETS.md</code></a> — the full secret contract, including the required <code>WORKSHOP_DISPENSER_URL</code>.</li>
 <li>Private <code>proxmox-clusters</code> repo — the proxy/dispenser install, systemd units, and <code>revoke-all</code> script (authoritative commands).</li>
 </ul>
 
