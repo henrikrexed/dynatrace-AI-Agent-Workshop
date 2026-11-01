@@ -6,6 +6,11 @@ kubeconfig*
 # Attendee-rendered Dynatrace assets (envsubst output of ${WORKSHOP_PREFIX}, ISI-6986)
 .rendered/
 
+# Attendee-personalized workshop docs served in-cluster by the mkdocs pod
+# (envsubst output of render-docs.sh: DQL + launchpad scoped to ${WORKSHOP_PREFIX}
+# / ${DT_TENANT_URL}, ISI-7007). Regenerated every boot — never committed.
+.workshop-site/
+
 # Secrets — never commit (contract: .devcontainer/SECRETS.md)
 .env
 .env.*

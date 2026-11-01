@@ -1,0 +1,103 @@
+# In-cluster MkDocs — serves the attendee's PERSONALIZED workshop site (ISI-7007).
+#
+# WHY IN-CLUSTER: the workshop UIs (Phoenix, kagent) are reached as NodePort
+# Services whose fixed nodePorts kind maps to forwarded Codespace ports. mkdocs
+# used to run as a bare `mkdocs serve` process (not in any namespace) — this
+# manifest brings it onto the devcontainer's kind cluster the same way, so the
+# docs are exposed on a namespace like everything else (ISI-6835 convention).
+#
+# CONTENT: the pod serves `.workshop-site/` — the per-attendee render produced by
+# .devcontainer/bootstrap/render-docs.sh (DQL + launchpad personalized with the
+# attendee's ${WORKSHOP_PREFIX} / ${DT_TENANT_URL}). The repo's `.workshop-site/`
+# dir is bind-mounted into the kind node via cluster/kind-config.yaml
+# `extraMounts` (hostPath → node path /workshop-site), then into this pod as a
+# read-only hostPath volume. Bind mounts are live, so render-after-create works
+# and a re-render (postStart) is picked up by `kubectl -n workshop-docs rollout
+# restart deploy/mkdocs`.
+#
+# EXPOSURE: Service type NodePort, fixed nodePort 30800, which kind maps to the
+# forwarded Codespace port 8000 (cluster/kind-config.yaml extraPortMappings).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workshop-docs
+  labels:
+    workshop.isitobservable/component: docs
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mkdocs
+  namespace: workshop-docs
+  labels:
+    app.kubernetes.io/name: mkdocs
+    app.kubernetes.io/part-of: workshop
+    app.kubernetes.io/component: docs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mkdocs
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mkdocs
+        app.kubernetes.io/part-of: workshop
+        app.kubernetes.io/component: docs
+    spec:
+      containers:
+        - name: mkdocs
+          # Official Material for MkDocs image — material theme + pymdownx
+          # bundled, so the committed mkdocs.yml serves as-is (no plugins section).
+          image: squidfunk/mkdocs-material:9.5.44
+          # Serve the rendered site. --dirty keeps serve snappy; readonly docs is
+          # fine (mkdocs builds into its own temp dir, never writes docs_dir).
+          command: ["mkdocs"]
+          args: ["serve", "--dev-addr", "0.0.0.0:8000", "--no-livereload", "-f", "/site/mkdocs.yml"]
+          ports:
+            - name: http
+              containerPort: 8000
+          volumeMounts:
+            - name: site
+              mountPath: /site
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+      volumes:
+        - name: site
+          hostPath:
+            # Node path fed by cluster/kind-config.yaml extraMounts (= repo
+            # .workshop-site/, rendered by render-docs.sh).
+            path: /workshop-site
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mkdocs
+  namespace: workshop-docs
+  labels:
+    app.kubernetes.io/name: mkdocs
+    app.kubernetes.io/part-of: workshop
+    app.kubernetes.io/component: docs
+    workshop.isitobservable/exposure: nodeport
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: mkdocs
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      nodePort: 30800
+      protocol: TCP

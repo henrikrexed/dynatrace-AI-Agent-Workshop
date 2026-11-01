@@ -12,7 +12,22 @@ if cluster_exists; then
   ok "cluster '${CLUSTER_NAME}' already exists (kind) — reusing"
 else
   log "creating kind cluster '${CLUSTER_NAME}'..."
-  kind create cluster --config "${REPO_ROOT}/cluster/kind-config.yaml" --wait 120s
+  # Render kind-config: the in-cluster mkdocs pod bind-mounts the attendee's
+  # personalized site (.workshop-site/) via node extraMounts, so the hostPath
+  # must be this repo's absolute path (ISI-7007). Ensure it exists first so the
+  # bind mount resolves to a directory (pod uses hostPath type: Directory).
+  export WORKSHOP_DOCS_HOSTPATH="${REPO_ROOT}/.workshop-site"
+  mkdir -p "${WORKSHOP_DOCS_HOSTPATH}"
+  KIND_CFG="${REPO_ROOT}/cluster/kind-config.yaml"
+  if have envsubst; then
+    KIND_CFG_RENDERED="$(mktemp /tmp/kind-config.XXXXXX.yaml)"
+    # SCOPED envsubst — only the hostPath token; leave everything else verbatim.
+    envsubst '${WORKSHOP_DOCS_HOSTPATH}' < "${REPO_ROOT}/cluster/kind-config.yaml" > "${KIND_CFG_RENDERED}"
+    KIND_CFG="${KIND_CFG_RENDERED}"
+  else
+    warn "envsubst not found — kind-config \${WORKSHOP_DOCS_HOSTPATH} unresolved; the in-cluster docs mount may be empty (install gettext-base)"
+  fi
+  kind create cluster --config "${KIND_CFG}" --wait 120s
   ok "cluster created"
 fi
 

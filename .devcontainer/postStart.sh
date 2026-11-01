@@ -28,6 +28,14 @@ for i in {1..30}; do cluster_reachable && break; sleep 2; done
 if cluster_reachable; then
   ok "cluster '${CLUSTER_NAME}' is up"
   kubectl get nodes --no-headers 2>/dev/null || true
+  # Re-render the personalized docs (a `git pull` may have changed them) and
+  # nudge the in-cluster mkdocs pod to pick them up. Graceful: never fatal.
+  if kubectl -n workshop-docs get deploy/mkdocs >/dev/null 2>&1; then
+    bash "${SCRIPT_DIR}/bootstrap/render-docs.sh" >/dev/null 2>&1 \
+      && kubectl -n workshop-docs rollout restart deploy/mkdocs >/dev/null 2>&1 \
+      && ok "workshop docs re-rendered -> http://localhost:8000" \
+      || warn "docs re-render/rollout skipped (non-fatal)"
+  fi
 else
   warn "cluster not reachable after start; run: bash .devcontainer/postCreate.sh"
 fi
