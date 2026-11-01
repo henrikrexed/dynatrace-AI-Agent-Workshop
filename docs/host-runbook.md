@@ -29,10 +29,11 @@ flowchart LR
   C -- "real DeepSeek key<br/>(host-only)" --> D[api.deepseek.com]
 ```
 
-- The dispenser is exposed publicly over **Tailscale Funnel** (HTTPS) at the URL
-  baked into
-  [`dispense-llm.sh`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/bootstrap/dispense-llm.sh)
-  (`WORKSHOP_DISPENSER_URL`, default `https://litellm-proxy.<tailnet>.ts.net/dispense`).
+- The dispenser is exposed publicly over **Tailscale Funnel** (HTTPS) at
+  `https://litellm-proxy.<tailnet>.ts.net/dispense`. This URL is **not** baked into
+  the repo — you distribute it to attendees as the required `WORKSHOP_DISPENSER_URL`
+  secret (alongside the room password); `dispense-llm.sh` fails closed without it
+  (ISI-7000).
 - A valid **room password** → the dispenser mints a fresh, budget-capped virtual
   key scoped to the single `deepseek-chat` model and returns the proxy endpoint +
   key. The attendee's bootstrap writes them to the gitignored `.workshop-llm.env`.
@@ -76,15 +77,19 @@ window is tight):
      https://litellm-proxy.<tailnet>.ts.net/dispense
    # expect 200 {"proxy_url":"https://…","virtual_key":"sk-…","model":"deepseek-chat"}
    ```
-5. **Hand the room password to attendees** (chat / slide / landing page). That is
-   the *only* model credential they need — they set it as the
-   `WORKSHOP_ROOM_PASSWORD` Codespace secret (token **D**).
+5. **Hand the room password AND the dispenser URL to attendees** (chat / slide /
+   landing page). They set both as Codespace secrets — `WORKSHOP_ROOM_PASSWORD`
+   (the only model credential) and `WORKSHOP_DISPENSER_URL`
+   (`https://litellm-proxy.<tailnet>.ts.net/dispense`, your current Funnel host) —
+   together they are token **D**. The URL is a **required** secret, not a default:
+   nothing in the repo points at your proxy host (ISI-7000).
 
 !!! tip "If an attendee's agents have no model key"
     Have them re-run `bash .devcontainer/bootstrap/dispense-llm.sh` and then
     re-run `bash cluster/install.sh`. The usual cause is a wrong/stale room
-    password (dispenser returns `401`) or the Funnel being down (returns `000` /
-    unreachable).
+    password (dispenser returns `401`), a missing/typo'd `WORKSHOP_DISPENSER_URL`
+    (bootstrap fails closed before any request), or the Funnel being down
+    (returns `000` / unreachable).
 
 ---
 
@@ -129,5 +134,5 @@ is closed:
 ## See also
 
 - [Start the benchmark → token **D**](start-benchmark.md#4-create-the-required-tokens) — the attendee-facing room-password step.
-- [`.devcontainer/SECRETS.md`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md) — the full secret contract and the `WORKSHOP_DISPENSER_URL` override.
+- [`.devcontainer/SECRETS.md`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/.devcontainer/SECRETS.md) — the full secret contract, including the required `WORKSHOP_DISPENSER_URL`.
 - Private `proxmox-clusters` repo — the proxy/dispenser install, systemd units, and `revoke-all` script (authoritative commands).

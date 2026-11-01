@@ -30,6 +30,7 @@ a secret, **rebuild or restart the Codespace** so the new value is injected.
 | `DT_TENANT_URL` | Dynatrace tenant used by the Operator (k8smonitoring) and OTLP export. | `https://abc12345.live.dynatrace.com` |
 | `DT_API_TOKEN` | Dynatrace **ingest** token — the OTel collector OTLP export + the DynaKube `dataIngestToken` (traces/metrics/logs ingest scopes). Classic (`dt0c01`) or platform (`dt0s16`). | `dt0c01.XXXX...` |
 | `WORKSHOP_ROOM_PASSWORD` | **The only model credential you supply.** The workshop room password (given by the host, rotated per session). At startup `.devcontainer/bootstrap/dispense-llm.sh` exchanges it — over the public dispenser (Tailscale Funnel, HTTPS) — for a **per-attendee LiteLLM-proxy endpoint + a freshly minted, budget-capped virtual key**, written to the gitignored `.workshop-llm.env`. That one key powers the kagent agents **and** the Phoenix / dt-evals judge. **No raw DeepSeek/OpenAI key is needed anywhere** (ISI-6996). | the room password string |
+| `WORKSHOP_DISPENSER_URL` | **The dispenser endpoint, given by the host alongside the room password.** `dispense-llm.sh` POSTs the room password here to mint your per-attendee key. **Required and fail-closed** — there is **no** host baked into the repo (the proxy is published over a rotatable Tailscale Funnel, so hardcoding it in this public repo is a leak — ISI-7000). | `https://litellm-proxy.<tailnet>.ts.net/dispense` |
 | `GITHUB_TOKEN` / `GH_PAT` | Token for the **GitHub MCP** wired into the BMAD crew (Phase 3). Codespaces injects a scoped `GITHUB_TOKEN`; for the write demo provide a **fine-grained `GH_PAT`** scoped to the one demo repo (Contents RW · Issues RW · Pull requests RW; no org/admin). The installer prefers `GH_PAT`, falling back to `GITHUB_TOKEN`. | `github_pat_...` |
 | `GH_DEMO_REPO` | The **BMAD/"bad crew"** demo repository the GitHub MCP writes to (issues/PRs). Explicit var so the environment test can assert it. | `owner/repo` or full URL |
 
@@ -41,8 +42,8 @@ a secret, **rebuild or restart the Codespace** so the new value is injected.
 > the eval shells), overriding the committed DeepSeek defaults with the proxy
 > `baseUrl` + minted `virtual_key`. Re-run it after the room password rotates:
 > `bash .devcontainer/bootstrap/dispense-llm.sh && bash cluster/install.sh`.
-> Override the dispenser host (only if the proxy is re-provisioned) with
-> `WORKSHOP_DISPENSER_URL`.
+> The dispenser host is **not** baked into the repo — supply it as the required
+> `WORKSHOP_DISPENSER_URL` secret (given by the host with the room password).
 
 ## Phase 3 / 5 — Dynatrace platform (`dtctl`)
 
@@ -77,7 +78,6 @@ eval-path env files.
 | Variable | Purpose |
 |----------|---------|
 | `DEEPSEEK_API_KEY` / `LLM_API_KEY` | **Direct** DeepSeek key — only to bypass the room-password proxy (CI / self-host). Normally unset: the virtual key is dispensed at runtime from `WORKSHOP_ROOM_PASSWORD`. If set, it populates `secret/kagent-deepseek` / `secret/phoenix-deepseek` and the judge fallback directly against `https://api.deepseek.com`. |
-| `WORKSHOP_DISPENSER_URL` | Override the model-proxy dispenser endpoint (default `https://litellm-proxy.<tailnet>.ts.net/dispense`). Only needed if the proxy host is re-provisioned. |
 | `OPENAI_API_KEY` | If you switch the agents back to OpenAI (`secret/kagent-openai`). |
 | `ANTHROPIC_API_KEY` | If agents target Anthropic models (`secret/kagent-anthropic`). |
 
