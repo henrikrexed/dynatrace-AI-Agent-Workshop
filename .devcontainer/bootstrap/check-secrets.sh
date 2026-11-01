@@ -34,20 +34,18 @@ check_either() {
 
 echo "--- Codespace secrets contract (values never printed) ---"
 
-# [Prefix] WORKSHOP_PREFIX — REQUIRED + fail-closed (ISI-6986). Unlike the secrets
-# below (which degrade gracefully), a missing/invalid prefix stops the bootstrap:
-# downstream namespaces + OTel attributes template with it to isolate this attendee
-# on the shared tenant. No silent fallback, no auto-derive.
-prefix_bad=0
+# [Prefix] WORKSHOP_PREFIX — the shared-tenant isolation prefix (ISI-6986). An
+# explicit valid value is preferred, but rather than fail-close into an empty
+# cluster (ISI-7005) we resolve it gracefully: an invalid/unset value is
+# normalized or derived from the Codespace identity so the install chain still
+# renders. We report what the install chain will actually use.
 echo "[Prefix] Shared-tenant isolation prefix"
-if [ -z "${WORKSHOP_PREFIX:-}" ]; then
-  err "WORKSHOP_PREFIX is MISSING (required) — set it in the 'Create codespace with options…' dialog (lowercase label, e.g. team-alpha)"
-  prefix_bad=1
-elif ! valid_workshop_prefix "${WORKSHOP_PREFIX}"; then
-  err "WORKSHOP_PREFIX is INVALID (required) — must match ${WORKSHOP_PREFIX_PATTERN} (lowercase, start with a letter, 2-19 chars of a-z 0-9 '-')"
-  prefix_bad=1
+_prefix_given="${WORKSHOP_PREFIX:-}"
+if valid_workshop_prefix "${_prefix_given}"; then
+  ok "WORKSHOP_PREFIX is set and valid (${_prefix_given})"
 else
-  ok "WORKSHOP_PREFIX is set and valid"
+  resolve_workshop_prefix   # warns + exports a derived, valid value
+  ok "WORKSHOP_PREFIX will resolve to '${WORKSHOP_PREFIX}' (auto-derived — set it explicitly in Codespace secrets to choose your own label)"
 fi
 
 echo "[Phase 2] Dynatrace operator + OTLP ingest"
@@ -78,10 +76,7 @@ check ANTHROPIC_API_KEY optional "used if agents target Anthropic models"
 
 echo "---------------------------------------------------------"
 echo "Set/rotate these under: GitHub repo/user Settings > Codespaces > Secrets."
-# Fail-closed ONLY on the required prefix; the secret presence checks above stay
-# advisory (components skip cleanly when their secret is absent).
-if [ "$prefix_bad" -ne 0 ]; then
-  err "WORKSHOP_PREFIX is unset or invalid — fix it in the Codespace secrets and rebuild; the install chain will not render without it."
-  exit 1
-fi
+# Advisory only: every component (and the prefix) degrades gracefully, so this
+# report never fails the bootstrap. A missing/invalid WORKSHOP_PREFIX is
+# auto-derived above (ISI-7005) rather than aborting the install chain.
 exit 0

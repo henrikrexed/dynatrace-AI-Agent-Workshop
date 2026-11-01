@@ -32,13 +32,34 @@ kubectl cluster-info >/dev/null 2>&1 || { err "cluster not reachable — run .de
 command -v helm >/dev/null || { err "helm not found"; exit 1; }
 command -v envsubst >/dev/null || warn "envsubst not found — Dynatrace apiUrl substitution will be skipped"
 
-# WORKSHOP_PREFIX — REQUIRED + fail-closed (ISI-6986). Downstream manifests template
-# namespaces + OTel attributes with it to isolate this attendee on the shared tenant.
-# Exported so the bare envsubst at the DynaKube step (and secrets.sh below) resolve
-# it; abort now rather than render an unresolved ${WORKSHOP_PREFIX}. No auto-derive.
-if ! [[ "${WORKSHOP_PREFIX:-}" =~ ^[a-z][a-z0-9-]{1,18}$ ]]; then
-  err "WORKSHOP_PREFIX unset or invalid ('${WORKSHOP_PREFIX:-}') — set it in the Codespace secrets (lowercase, start with a letter, 2-19 chars of a-z 0-9 '-', e.g. team-alpha) and re-run."
-  exit 1
+# WORKSHOP_PREFIX — the per-attendee isolation prefix (ISI-6986). Downstream
+# manifests template namespaces + OTel attributes with it. An explicit valid value
+# always wins; when unset/malformed we GRACEFULLY derive a deterministic, valid
+# per-attendee prefix from the Codespace identity rather than fail-close into an
+# empty cluster (ISI-7005). Self-contained copy of resolve_workshop_prefix from
+# .devcontainer/bootstrap/lib.sh — kept identical so standalone `bash
+# cluster/install.sh` and the devcontainer bootstrap derive the SAME value.
+WORKSHOP_PREFIX_PATTERN='^[a-z][a-z0-9-]{1,18}$'
+if ! [[ "${WORKSHOP_PREFIX:-}" =~ $WORKSHOP_PREFIX_PATTERN ]]; then
+  _raw_prefix="${WORKSHOP_PREFIX:-}"
+  _sanitize_prefix() {
+    local s
+    s="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' \
+          | sed -E 's/[^a-z0-9-]+/-/g; s/-+/-/g; s/^-+//; s/-+$//')"
+    [[ "$s" =~ ^[a-z] ]] || s="w-${s}"
+    s="$(printf '%s' "${s:0:19}" | sed -E 's/-+$//')"
+    [[ "$s" =~ $WORKSHOP_PREFIX_PATTERN ]] && printf '%s' "$s"
+  }
+  WORKSHOP_PREFIX=""
+  for _src in "${_raw_prefix}" "${GITHUB_USER:-}" "${CODESPACE_NAME:-}" "workshop"; do
+    WORKSHOP_PREFIX="$(_sanitize_prefix "$_src")"
+    [ -n "$WORKSHOP_PREFIX" ] && break
+  done
+  if [ -n "$_raw_prefix" ]; then
+    warn "WORKSHOP_PREFIX='${_raw_prefix}' is invalid — using normalized '${WORKSHOP_PREFIX}' so the stack still deploys. Set a valid WORKSHOP_PREFIX (${WORKSHOP_PREFIX_PATTERN}) in Codespace secrets to pick your own isolation label."
+  else
+    warn "WORKSHOP_PREFIX was not set — auto-derived '${WORKSHOP_PREFIX}' from your Codespace identity so the stack still deploys. Set WORKSHOP_PREFIX in Codespace secrets to pick a friendly isolation label (e.g. team-alpha)."
+  fi
 fi
 export WORKSHOP_PREFIX
 

@@ -27,13 +27,29 @@ kubectl cluster-info >/dev/null 2>&1 || { err "cluster not reachable — run clu
 command -v envsubst >/dev/null || { err "envsubst not found (gettext) — needed to inject tokens at apply time"; exit 1; }
 kubectl get ns kagent >/dev/null 2>&1 || { err "namespace kagent missing — run cluster/install.sh (Phase 2) first"; exit 1; }
 
-# WORKSHOP_PREFIX — REQUIRED + fail-closed (ISI-6986). Agent/MCP manifests template
-# OTel attributes (service.name etc.) with it to isolate this attendee on the shared
-# tenant. Added to SUBST_VARS below so envsubst resolves ${WORKSHOP_PREFIX}; abort
-# now rather than render it unresolved. No auto-derive. Do NOT rename the kagent ns.
-if ! [[ "${WORKSHOP_PREFIX:-}" =~ ^[a-z][a-z0-9-]{1,18}$ ]]; then
-  err "WORKSHOP_PREFIX unset or invalid ('${WORKSHOP_PREFIX:-}') — set it in the Codespace secrets (lowercase, start with a letter, 2-19 chars of a-z 0-9 '-', e.g. team-alpha) and re-run."
-  exit 1
+# WORKSHOP_PREFIX — isolation prefix (ISI-6986 / ISI-7005). Agent/MCP manifests
+# template OTel attributes (service.name etc.) with it via envsubst (SUBST_VARS).
+# An explicit valid value wins; otherwise derive a deterministic, valid per-attendee
+# prefix from the Codespace identity so this standalone Phase 3 step still renders
+# instead of fail-closing. Self-contained copy of resolve_workshop_prefix from
+# .devcontainer/bootstrap/lib.sh — keep in sync. Do NOT rename the kagent ns.
+WORKSHOP_PREFIX_PATTERN='^[a-z][a-z0-9-]{1,18}$'
+if ! [[ "${WORKSHOP_PREFIX:-}" =~ $WORKSHOP_PREFIX_PATTERN ]]; then
+  _raw_prefix="${WORKSHOP_PREFIX:-}"
+  _sanitize_prefix() {
+    local s
+    s="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' \
+          | sed -E 's/[^a-z0-9-]+/-/g; s/-+/-/g; s/^-+//; s/-+$//')"
+    [[ "$s" =~ ^[a-z] ]] || s="w-${s}"
+    s="$(printf '%s' "${s:0:19}" | sed -E 's/-+$//')"
+    [[ "$s" =~ $WORKSHOP_PREFIX_PATTERN ]] && printf '%s' "$s"
+  }
+  WORKSHOP_PREFIX=""
+  for _src in "${_raw_prefix}" "${GITHUB_USER:-}" "${CODESPACE_NAME:-}" "workshop"; do
+    WORKSHOP_PREFIX="$(_sanitize_prefix "$_src")"
+    [ -n "$WORKSHOP_PREFIX" ] && break
+  done
+  warn "WORKSHOP_PREFIX unset/invalid ('${_raw_prefix}') — using '${WORKSHOP_PREFIX}' (auto-derived; set it in Codespace secrets to pick your own isolation label). Must match what cluster/install.sh used."
 fi
 export WORKSHOP_PREFIX
 
