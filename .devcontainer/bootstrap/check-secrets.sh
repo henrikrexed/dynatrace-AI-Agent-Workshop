@@ -66,7 +66,7 @@ check GH_DEMO_REPO required "BMAD/'bad crew' demo repo (owner/repo) the GitHub M
 echo "[Phase 4] dt-evals (trace-sourced LLM-as-judge)"
 check_either DT_ENV_URL DT_ENVIRONMENT_URL optional "dt-evals tenant URL; derived from DT_TENANT_URL if unset"
 check DYNATRACE_API_TOKEN optional "DynaKube OPERATOR token (apiToken, k8s-monitoring scopes) + dt-evals (storage:spans:read + storage:events:write)"
-check DT_EVAL_SERVICE     optional "service.name of the agent to evaluate (discovered, not a secret)"
+check DT_EVAL_SERVICE     optional "service.name of the agent to evaluate (defaults to \${WORKSHOP_PREFIX}-sre-agent; not a secret)"
 
 echo "[Optional] alternate model providers"
 check OPENAI_API_KEY    optional "used if agents/judge target OpenAI directly"

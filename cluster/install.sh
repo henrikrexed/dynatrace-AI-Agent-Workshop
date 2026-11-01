@@ -109,8 +109,19 @@ if [ "$INSTALL_OTEL" = "true" ]; then
     -f "${SCRIPT_DIR}/otel/operator-values.yaml" --wait --timeout 5m
   kubectl -n opentelemetry-operator-system rollout status deploy/opentelemetry-operator --timeout=120s || warn "otel operator not ready"
   # Webhook needs a moment to register before the CR validates.
+  # Render ${WORKSHOP_PREFIX} into the resource processor (k8s.cluster.name +
+  # workshop.attendee) so this attendee's telemetry is isolated on the shared
+  # tenant (ISI-6986). SCOPED envsubst — only ${WORKSHOP_PREFIX} is substituted,
+  # leaving the collector's own ${env:...} runtime refs intact. envsubst is
+  # required here (WORKSHOP_PREFIX was already validated at the top of this script).
+  if command -v envsubst >/dev/null; then
+    COLLECTOR_MANIFEST="$(envsubst '${WORKSHOP_PREFIX}' < "${SCRIPT_DIR}/otel/collector-gateway.yaml")"
+  else
+    warn "envsubst not found — collector will be applied with an unresolved \${WORKSHOP_PREFIX}; install gettext and re-run"
+    COLLECTOR_MANIFEST="$(cat "${SCRIPT_DIR}/otel/collector-gateway.yaml")"
+  fi
   for i in {1..15}; do
-    kubectl apply -f "${SCRIPT_DIR}/otel/collector-gateway.yaml" 2>/dev/null && { ok "OpenTelemetryCollector applied"; break; }
+    printf '%s\n' "$COLLECTOR_MANIFEST" | kubectl apply -f - 2>/dev/null && { ok "OpenTelemetryCollector applied (workshop.attendee=${WORKSHOP_PREFIX})"; break; }
     sleep 4
   done
 else
