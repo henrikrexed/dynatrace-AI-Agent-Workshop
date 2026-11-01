@@ -70,10 +70,18 @@ Your host may hand you the Dynatrace tokens in chat or on the landing page.
 
 ## 🌐 Dynatrace environment
 
+> The Codespace bootstrap renders this page with **your** live values —
+> `${DT_TENANT_URL}` and `${WORKSHOP_PREFIX}` below are filled in from the
+> environment variables set on your Codespace (see
+> `.devcontainer/bootstrap/render-docs.sh`). Import the rendered copy
+> (`.workshop-site/launchpad.md`) into Dynatrace as your welcome doc. On the
+> repo/published version these stay as literal `${…}` placeholders.
+
 | Property | Value |
 |---|---|
-| **Tenant URL** | `<this tenant — paste into `DT_TENANT_URL`, e.g. https://abc12345.live.dynatrace.com>` |
-| **What lands here** | kagent `gen_ai.*` **traces** (`service.namespace == "kagent"`), **metrics**, **logs**, and **Kubernetes** topology in Smartscape |
+| **Tenant URL** | `${DT_TENANT_URL}` |
+| **Your attendee prefix** | `${WORKSHOP_PREFIX}` — stamped on every span as `workshop.attendee` / `k8s.cluster.name`; your SRE agent arrives as `service.name == "${WORKSHOP_PREFIX}-sre-agent"` |
+| **What lands here** | kagent `gen_ai.*` **traces** (`workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"`), **metrics**, **logs**, and **Kubernetes** topology in Smartscape |
 | **Dashboard** | `AI Agent Optimization` — token spend, unused tools, inefficient loops (import via `dtctl apply -f cluster/dynatrace/optimization/ai-agent-optimization.dashboard.yaml`) |
 | **Notebook** | `AI Agent Optimization — Before / After` — the reproducible cost-cut story |
 | **Site Reliability Guardian** | `AI Agent Quality & Cost` — the continuous cost + quality regression gate |

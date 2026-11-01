@@ -296,10 +296,19 @@ judge key is supplied automatically by the room-password proxy
 
 ```dql
 fetch spans, from: now() - 2h
+| filter workshop.attendee == "${WORKSHOP_PREFIX}"
 | filter isNotNull(gen_ai.operation.name) or isNotNull(gen_ai.request.model)
 | summarize span_count = count(), by: { service.name }
 | sort span_count desc
 ```
+
+!!! note "`${WORKSHOP_PREFIX}` is *your* attendee prefix"
+    The workshop runs on a **shared** Dynatrace tenant, so every query is scoped
+    to `workshop.attendee == "${WORKSHOP_PREFIX}"` — the collector stamps your
+    spans with it (and your agent's `service.name` is `${WORKSHOP_PREFIX}-sre-agent`;
+    ISI-6988). In the docs you read **inside your Codespace** this is already
+    filled in with your real prefix; on the published site it stays as the literal
+    placeholder — replace it with your own value (`echo $WORKSHOP_PREFIX`).
 
 **Apply this.** The shipped config enables relevance, faithfulness, hallucination,
 coherence, toxicity, and prompt-injection metrics, and sets thresholds that make
@@ -366,6 +375,7 @@ quality.
 ```dql
 fetch bizevents
 | filter event.type == "gen_ai.evaluation.result"
+| filter service.name == "${WORKSHOP_PREFIX}-sre-agent"
 | summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
 ```
 
@@ -414,7 +424,7 @@ called is pure prompt overhead), and **how many tokens is each agent burning**
 
 ```dql
 fetch spans
-| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
+| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
 | summarize llmCalls = count(),
     inputTokens  = sum(gen_ai.usage.input_tokens),
     outputTokens = sum(gen_ai.usage.output_tokens),
@@ -429,7 +439,8 @@ fetch spans
 
 ```dql
 fetch spans
-| filter service.namespace == "kagent" and service.name == "<agent-service-name>"
+| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
+    and service.name == "${WORKSHOP_PREFIX}-sre-agent"
     and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
 | summarize calls = count(), by:{tool = gen_ai.tool.name}
 | sort calls desc

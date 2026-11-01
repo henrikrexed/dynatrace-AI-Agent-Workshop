@@ -6,6 +6,14 @@
 # ports via extraPortMappings. The containerPort here is the Service nodePort.
 #   Phoenix   NodePort 30606 -> host 6006  (cluster/phoenix/phoenix.yaml)
 #   kagent UI NodePort 30080 -> host 8080  (cluster/kagent/ui-nodeport.yaml)
+#   mkdocs    NodePort 30800 -> host 8000  (cluster/mkdocs/mkdocs.yaml)
+#
+# NOTE — RENDERED AT RUNTIME: `${WORKSHOP_DOCS_HOSTPATH}` below is substituted by
+# .devcontainer/bootstrap/create-cluster.sh (scoped envsubst) to the repo's
+# `.workshop-site/` absolute path before `kind create`, so the in-cluster mkdocs
+# pod can bind-mount the attendee's personalized site (ISI-7007). The extraMount
+# is on BOTH nodes so the pod serves correctly wherever it is scheduled. Do not
+# run `kind create --config` on this file directly — go through create-cluster.sh.
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: workshop
@@ -19,5 +27,16 @@ nodes:
       - containerPort: 30080
         hostPort: 8080
         protocol: TCP
+      - containerPort: 30800
+        hostPort: 8000
+        protocol: TCP
+    extraMounts:
+      - hostPath: "${WORKSHOP_DOCS_HOSTPATH}"
+        containerPath: /workshop-site
+        readOnly: true
   - role: worker
     image: kindest/node:v1.31.4
+    extraMounts:
+      - hostPath: "${WORKSHOP_DOCS_HOSTPATH}"
+        containerPath: /workshop-site
+        readOnly: true

@@ -15,7 +15,7 @@ ingress controller, no manual `kubectl port-forward`.
 |-----------|--------------|----------|---------------|----------------|
 | Phoenix   | NodePort     | 30606    | 6006          | 6006           |
 | kagent UI | NodePort     | 30080    | 8080          | 8080           |
-| mkdocs    | bare `mkdocs serve` process (not in-cluster) | — | — | 8000 |
+| mkdocs    | NodePort     | 30800    | 8000          | 8000           |
 
 **Rationale:**
 
@@ -31,6 +31,21 @@ ingress controller, no manual `kubectl port-forward`.
   kagent Helm chart (0.10.4) exposes `ui.service.type` but **cannot pin a
   nodePort**, so a small companion `NodePort` Service (`cluster/kagent/ui-nodeport.yaml`,
   `nodePort: 30080`) ships alongside the chart and is applied by `cluster/install.sh`.
+
+- **mkdocs is in-cluster too (ISI-7007).** It used to run as a bare `mkdocs serve`
+  process on port 8000 — not in any namespace, inconsistent with the other UIs.
+  It now ships as `cluster/mkdocs/mkdocs.yaml`: a `Deployment` + fixed-nodePort
+  `Service` (`30800` → host `8000`) in namespace `workshop-docs`, applied by
+  `cluster/install.sh` (step 7, `INSTALL_MKDOCS=true` by default, graceful on
+  failure). The pod runs the official `squidfunk/mkdocs-material` image and serves
+  `.workshop-site/` — a **per-attendee render** (`.devcontainer/bootstrap/render-docs.sh`,
+  scoped `envsubst`) where the DQL queries and the Dynatrace launchpad are already
+  filled in with the attendee's `${WORKSHOP_PREFIX}` / `${DT_TENANT_URL}`. The
+  render dir is bind-mounted into the kind nodes via `kind-config.yaml`
+  `extraMounts` (hostPath rendered at create time by `create-cluster.sh`, present
+  on both nodes so the pod serves wherever it is scheduled; bind mounts are live,
+  so `postStart` re-renders + `rollout restart` picks up doc changes after a
+  `git pull`).
 
 > **Memory trade-off:** k3d (k3s) had a lighter footprint, which is why it was the
 > original default on a 4c/16GB machine. kind + the full stack is tighter but fits;

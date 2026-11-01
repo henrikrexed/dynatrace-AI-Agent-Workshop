@@ -364,32 +364,96 @@ t7_evals() {
 # T8 — mkdocs serve on 8000
 # =============================================================================
 t8_mkdocs() {
-  hdr "T8 — mkdocs serve on :8000"
-  if ! have mkdocs; then
-    record T8 "mkdocs serve :8000" SKIP "mkdocs not installed — see T1"
+  hdr "T8 — in-cluster workshop docs reachable on :8000 (NodePort 30800)"
+  # mkdocs now runs IN the cluster (cluster/mkdocs/mkdocs.yaml), not as a bare
+  # process (ISI-7007). Live check: the NodePort-forwarded site answers on :8000.
+  if ! cluster_up; then
+    record T8 "in-cluster mkdocs :8000" SKIP "no cluster — in-cluster mkdocs is a live-Codespace check (static render proven by T10)"
     return
   fi
   if ! have curl; then
-    record T8 "mkdocs serve :8000" PARTIAL "mkdocs present but curl missing — cannot probe :8000; 'mkdocs build' is the fallback check"
+    record T8 "in-cluster mkdocs :8000" PARTIAL "cluster up but curl missing — cannot probe :8000; deploy state: $(kubectl -n workshop-docs get deploy/mkdocs -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo '?') ready"
     return
   fi
-  ( cd "${REPO_ROOT}" && mkdocs serve -a 127.0.0.1:8000 >/tmp/t8.serve 2>&1 ) &
-  local pid=$!
   local ok=0 i
   for i in $(seq 1 20); do
     if curl -fsS -o /dev/null --max-time 2 http://127.0.0.1:8000 2>/dev/null; then ok=1; break; fi
     sleep 1
   done
-  kill "$pid" >/dev/null 2>&1; wait "$pid" 2>/dev/null
   if [ "$ok" -eq 1 ]; then
-    record T8 "mkdocs serve :8000" PASS "site responded 200 on http://127.0.0.1:8000"
+    record T8 "in-cluster mkdocs :8000" PASS "personalized site responded 200 on http://127.0.0.1:8000 (workshop-docs/mkdocs NodePort 30800)"
   else
-    # fall back to a build check so we still get signal if the port was busy
-    if ( cd "${REPO_ROOT}" && mkdocs build -q >/tmp/t8.build 2>&1 ); then
-      record T8 "mkdocs serve :8000" PARTIAL "serve probe failed but 'mkdocs build' succeeds (port 8000 may be busy) — see /tmp/t8.serve"
+    local ready; ready="$(kubectl -n workshop-docs get deploy/mkdocs -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo 0)"
+    if [ "${ready:-0}" = "1" ]; then
+      record T8 "in-cluster mkdocs :8000" PARTIAL "mkdocs Deployment is Ready but :8000 did not answer (port not forwarded in this shell?) — run inside the Codespace"
     else
-      record T8 "mkdocs serve :8000" FAIL "serve did not respond and 'mkdocs build' failed (see /tmp/t8.build)"
+      record T8 "in-cluster mkdocs :8000" FAIL "mkdocs not reachable and Deployment not Ready — check: kubectl -n workshop-docs get pods"
     fi
+  fi
+}
+
+# =============================================================================
+# T10 — Docs personalization render (static): DQL + launchpad scoped to the
+# attendee's ${WORKSHOP_PREFIX}, instructions left verbatim (ISI-7007).
+# =============================================================================
+t10_docs_render() {
+  hdr "T10 — docs render personalizes DQL, preserves instructions (static)"
+  local rd="${BOOT}/render-docs.sh"
+  if [ ! -f "$rd" ]; then record T10 "docs render" FAIL "render-docs.sh not found at ${rd}"; return; fi
+  if ! have envsubst; then record T10 "docs render" SKIP "envsubst (gettext-base) absent — render is a no-op here"; return; fi
+  local pfx="t10probe" url="https://t10probe.live.dynatrace.com"
+  if ! WORKSHOP_PREFIX="$pfx" DT_TENANT_URL="$url" DT_ENVIRONMENT="https://t10probe.apps.dynatrace.com" \
+       bash "$rd" >/tmp/t10.render 2>&1; then
+    record T10 "docs render" FAIL "render-docs.sh exited non-zero (see /tmp/t10.render)"; return
+  fi
+  local out="${REPO_ROOT}/.workshop-site" fails=()
+  [ -f "${out}/mkdocs.yml" ] || fails+=("mkdocs.yml not emitted")
+  # DQL in a fetch block must be personalized...
+  grep -qF "workshop.attendee == \"${pfx}\"" "${out}/docs/07-optimize.md" 2>/dev/null \
+    || fails+=("07 DQL not personalized")
+  # ...launchpad values substituted...
+  grep -qF "$url" "${out}/launchpad.md" 2>/dev/null || fails+=("launchpad DT_TENANT_URL not substituted")
+  # ...but instructional bash/prose placeholders preserved verbatim...
+  grep -qF 'envsubst '"'"'${WORKSHOP_PREFIX}'"'" "${out}/docs/07-optimize.md" 2>/dev/null \
+    || fails+=("07 instructional envsubst snippet was clobbered")
+  # ...and nothing unresolved inside any DQL (fetch) block.
+  local leak
+  leak="$(awk '
+    !inf && /^[[:space:]]*```/ {inf=1;fv="";next}
+    inf && /^[[:space:]]*```[[:space:]]*$/ {inf=0;next}
+    inf { if(fv==""){t=$0;gsub(/^[[:space:]]+/,"",t);if(t!=""){split(t,a,/[[:space:]]/);fv=a[1]}}
+          if(fv=="fetch" && /\$\{WORKSHOP_PREFIX\}/) c++ }
+    END{print c+0}' "${out}"/docs/*.md)"
+  [ "${leak:-0}" = "0" ] || fails+=("${leak} unresolved \${WORKSHOP_PREFIX} inside DQL blocks")
+  # Downloadable notebook/workflow JSON must be personalized too (ISI-7007):
+  # the attendee uploads them into Dynatrace, so their DQL must carry the prefix.
+  local nb="${out}/docs/assets/optimization/ai-agent-workflow-steps.notebook.json"
+  local wf="${out}/docs/assets/optimization/ai-agent-optimization.workflow.json"
+  [ -f "$nb" ] || fails+=("read-the-run notebook JSON not emitted")
+  [ -f "$wf" ] || fails+=("workflow JSON not emitted")
+  if [ -f "$nb" ]; then
+    # DQL lives inside a JSON string, so the quotes are backslash-escaped:
+    # the file literally contains  workshop.attendee == \"<prefix>\"
+    grep -qF "workshop.attendee == \\\"${pfx}" "$nb" 2>/dev/null \
+      || fails+=("notebook JSON DQL not personalized")
+    grep -qF '${WORKSHOP_PREFIX}' "$nb" 2>/dev/null \
+      && fails+=("unresolved \${WORKSHOP_PREFIX} left in notebook JSON")
+  fi
+  if have jq; then
+    for js in "${out}"/docs/assets/optimization/*.json; do
+      jq empty "$js" >/dev/null 2>&1 || fails+=("$(basename "$js") invalid JSON after render")
+    done
+  fi
+  # Manifests parse (if yq present).
+  if have yq; then
+    yq ea 'true' "${REPO_ROOT}/cluster/mkdocs/mkdocs.yaml" >/dev/null 2>&1 || fails+=("mkdocs.yaml invalid YAML")
+    WORKSHOP_DOCS_HOSTPATH="${out}" envsubst '${WORKSHOP_DOCS_HOSTPATH}' < "${REPO_ROOT}/cluster/kind-config.yaml" \
+      | yq e 'true' - >/dev/null 2>&1 || fails+=("kind-config.yaml invalid after render")
+  fi
+  if [ ${#fails[@]} -eq 0 ]; then
+    record T10 "docs render" PASS "DQL + launchpad + downloadable notebook/workflow JSON personalized to '${pfx}'; instructions preserved; no unresolved tokens in DQL; manifests + JSON valid"
+  else
+    record T10 "docs render" FAIL "$(IFS='; '; echo "${fails[*]}")"
   fi
 }
 
@@ -416,7 +480,7 @@ t9_resume() {
 # =============================================================================
 # Run
 # =============================================================================
-printf "${c_blue}Fresh-Codespace validation harness — T0..T9 (ISI-6744 §5)${c_reset}\n"
+printf "${c_blue}Fresh-Codespace validation harness — T0..T10 (ISI-6744 §5 + ISI-7007)${c_reset}\n"
 info "repo:        ${REPO_ROOT}"
 info "mode:        $([ "$STATIC_ONLY" -eq 1 ] && echo 'static-only' || echo 'full (auto-detect)')"
 info "cluster:     CLUSTER_TOOL=${CLUSTER_TOOL} name=${CLUSTER_NAME} up=$(cluster_up && echo yes || echo no)"
@@ -425,6 +489,7 @@ info "docker:      $(docker_up && echo up || echo down)"
 t0_build
 t1_toolchain
 t2_secrets
+t10_docs_render
 if [ "$STATIC_ONLY" -eq 0 ]; then
   t3_cluster
   t4_phase2

@@ -57,13 +57,15 @@ cat <<'EOF'
    - Toolchain: kubectl, helm, kind, yq, dtctl, uv, node, dt-evals, mkdocs.
 
  UIs (forwarded Codespace ports, via kind NodePort mappings):
-   Phoenix   -> http://localhost:6006
-   kagent UI -> http://localhost:8080
+   Phoenix       -> http://localhost:6006
+   kagent UI     -> http://localhost:8080
+   Workshop docs -> http://localhost:8000   (in-cluster mkdocs, personalized to
+                                              your WORKSHOP_PREFIX)
 
  Next:
    kubectl get nodes
    kubectl get pods -A
-   mkdocs serve -a 0.0.0.0:8000      # workshop site on forwarded port 8000 (optional)
+   kubectl -n workshop-docs get pods        # the personalized docs server
 ================================================================
 EOF
 

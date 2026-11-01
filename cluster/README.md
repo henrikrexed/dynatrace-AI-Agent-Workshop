@@ -19,6 +19,7 @@ install fills in the component directories and the install scripts.
 | `tetragon/` | Tetragon eBPF runtime security. |
 | `agent-sandbox/` | Agent isolation baseline (PSA restricted + default-deny NetworkPolicy). |
 | `phoenix/` | Phoenix (Arize) LLM eval/trace UI. |
+| `mkdocs/` | In-cluster workshop docs — NodePort 30800 → host 8000, serves the per-attendee render (`.devcontainer/bootstrap/render-docs.sh`). |
 
 ## Install
 

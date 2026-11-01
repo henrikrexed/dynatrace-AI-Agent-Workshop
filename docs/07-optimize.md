@@ -52,12 +52,21 @@ cheap agent that gives wrong answers.
     for the guardian + workflow (they render the same way).
 
     No `dtctl`? Download the UI-importable JSON and upload it in your own tenant
-    (Dashboards / Notebooks → **Upload**). The JSON still carries the
-    `${WORKSHOP_PREFIX}` placeholder — find/replace it with your attendee prefix
-    before uploading (the dtctl path does the same via `envsubst`):
+    (Dashboards / Notebooks / Workflows → **Upload**):
 
+    - [ai-agent-workflow-steps.notebook.json](assets/optimization/ai-agent-workflow-steps.notebook.json) — *Read an AI Agent Run* (start here)
     - [ai-agent-optimization.dashboard.json](assets/optimization/ai-agent-optimization.dashboard.json)
     - [ai-agent-optimization-before-after.notebook.json](assets/optimization/ai-agent-optimization-before-after.notebook.json)
+    - [ai-agent-optimization.workflow.json](assets/optimization/ai-agent-optimization.workflow.json) — scheduled guardian run
+
+    !!! note "Already personalized on your workshop site"
+        When you open this page from **your own in-cluster docs site** (the
+        `mkdocs` service in your devcontainer — `http://localhost:8000`), these
+        downloads are rendered with **your** `WORKSHOP_PREFIX` already baked into
+        every DQL filter (`workshop.attendee == "<your-prefix>"`), so you can
+        upload them as-is. On the public GitHub Pages copy they keep the literal
+        `${WORKSHOP_PREFIX}` placeholder — find/replace it with your attendee
+        prefix before uploading (the `dtctl` path does the same via `envsubst`).
 
     - **Notebook — *Read an AI Agent Run*** (`ai-agent-workflow-steps`): walks one
       run from the crew list down to the per-hop token bill — the understand-first

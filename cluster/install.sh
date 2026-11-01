@@ -23,6 +23,7 @@ INSTALL_TETRAGON="${INSTALL_TETRAGON:-true}"
 INSTALL_KAGENT="${INSTALL_KAGENT:-true}"
 INSTALL_PHOENIX="${INSTALL_PHOENIX:-true}"
 INSTALL_AGENT_SANDBOX="${INSTALL_AGENT_SANDBOX:-true}"
+INSTALL_MKDOCS="${INSTALL_MKDOCS:-true}"
 # Opt-in ONLY (the single component defaulting false): the opentelemetry-demo-light
 # app for the diagnostic module's scenario #12. Off by default so the base workshop
 # and scenarios 01-03 fit the minimum 4-core/16GB Codespace. See cluster/otel-demo/.
@@ -211,6 +212,24 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# In-cluster workshop docs: serve the attendee's PERSONALIZED mkdocs site on the
+# cluster the same way as the other UIs (NodePort). Render first so the pod's
+# bind-mounted .workshop-site/ carries the attendee's ${WORKSHOP_PREFIX} /
+# ${DT_TENANT_URL} (ISI-7007). Graceful — a failed render/apply never bricks the
+# Codespace (consistent with the rest of this installer).
+if [ "$INSTALL_MKDOCS" = "true" ]; then
+  log "7/7  In-cluster workshop docs (mkdocs NodePort 30800 -> localhost:8000)"
+  ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+  bash "${ROOT}/.devcontainer/bootstrap/render-docs.sh" || warn "docs render reported issues — serving whatever is under .workshop-site/"
+  kubectl apply -f "${SCRIPT_DIR}/mkdocs/mkdocs.yaml" || warn "mkdocs manifest apply reported issues"
+  # Pick up a fresh render if the Deployment already existed (bind mount is live).
+  kubectl -n workshop-docs rollout restart deploy/mkdocs >/dev/null 2>&1 || true
+  kubectl -n workshop-docs rollout status deploy/mkdocs --timeout=120s || warn "mkdocs not ready yet — check: kubectl -n workshop-docs get pods"
+else
+  warn "INSTALL_MKDOCS=false — skipping in-cluster workshop docs (use 'mkdocs serve' locally instead)"
+fi
+
+# ---------------------------------------------------------------------------
 # Opt-in app dependency for the fault-injection diagnostic module (scenario #12).
 # Default OFF — keeps the base install inside the 4-core/16GB Codespace floor.
 # Enable with:  INSTALL_OTEL_DEMO=true bash cluster/install.sh
@@ -241,6 +260,7 @@ cat <<'EOF'
  UIs (NodePort -> forwarded Codespace ports, no port-forward needed):
    Phoenix   -> http://localhost:6006   (NodePort 30606)
    kagent UI -> http://localhost:8080   (NodePort 30080)
+   Workshop docs (mkdocs, personalized) -> http://localhost:8000  (NodePort 30800)
 
  Telemetry: once agents run (Phase 3), spans fan out to Dynatrace + Phoenix
  via otel-gateway-collector.opentelemetry-operator-system.svc:4317.
