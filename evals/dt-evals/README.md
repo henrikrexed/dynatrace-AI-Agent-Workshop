@@ -91,8 +91,14 @@ dropping `baseUrl` in the YAML and setting `model: gpt-4o` + an OpenAI key.
 ```dql
 fetch bizevents
 | filter event.type == "gen_ai.evaluation.result"
+| filter service.name == "${WORKSHOP_PREFIX}-sre-agent"
 | summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
 ```
+
+On the shared workshop tenant the `service.name` clause scopes the read-back to
+**your** results (dt-evals stamps each result bizevent with the evaluated agent's
+`service.name`). Replace `${WORKSHOP_PREFIX}` with your prefix (`echo
+$WORKSHOP_PREFIX`); drop the clause and you summarize every attendee's results.
 
 A threshold breach makes the run exit non-zero (CI-friendly) — see `alerts:` in
 the config.
