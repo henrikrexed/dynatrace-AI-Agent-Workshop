@@ -11,7 +11,7 @@ content:
     markdown: '# AI Agent Optimization — a measurable before/after
 
 
-      **ISI-6720 · Phase 5** · Tenant `oat05854.dev.apps.dynatracelabs.com` · data: `gen_ai.*` spans from the kagent crew (`service.namespace == "kagent"`).
+      **ISI-6720 · Phase 5** · Tenant `oat05854.dev.apps.dynatracelabs.com` · data: `gen_ai.*` spans from the kagent crew (`workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"`).
 
 
       This notebook is the *reproducible story* behind module **`docs/06-optimize.md`**. It follows the optimization loop:
@@ -37,14 +37,14 @@ content:
         timeframe:
           from: now()-7d
           to: now()
-        value: "fetch spans\n| filter service.namespace == \"kagent\" and isNotNull(gen_ai.usage.output_tokens)\n| summarize llmCalls = count(),\n    inputTokens = sum(gen_ai.usage.input_tokens),\n    outputTokens = sum(gen_ai.usage.output_tokens),\n    by:{agent = service.name}\n| fieldsAdd totalTokens = inputTokens + outputTokens\n| sort totalTokens desc"
+        value: "fetch spans\n| filter workshop.attendee == \"${WORKSHOP_PREFIX}\" and service.namespace == \"kagent\" and isNotNull(gen_ai.usage.output_tokens)\n| summarize llmCalls = count(),\n    inputTokens = sum(gen_ai.usage.input_tokens),\n    outputTokens = sum(gen_ai.usage.output_tokens),\n    by:{agent = service.name}\n| fieldsAdd totalTokens = inputTokens + outputTokens\n| sort totalTokens desc"
     title: Token spend by agent (7d)
     type: dql
   - id: f8a17b82-74c6-4adf-9881-e41672836c75
     type: markdown
     markdown: '## 2 · Spot the waste signature
 
-      A high **input : output ratio** and a large **avg input per call** means the model re-reads a bloated context (big system prompt + unused tool schemas) on every single call. `seta_sre_investigator` is the outlier here.'
+      A high **input : output ratio** and a large **avg input per call** means the model re-reads a bloated context (big system prompt + unused tool schemas) on every single call. `${WORKSHOP_PREFIX}-sre-agent` is the outlier here.'
   - drilldownPath: []
     filterSegments: []
     id: 63ed07a9-002e-4338-afcc-4c0e103faa08
@@ -56,7 +56,7 @@ content:
         timeframe:
           from: now()-7d
           to: now()
-        value: "fetch spans\n| filter service.namespace == \"kagent\" and isNotNull(gen_ai.usage.output_tokens)\n| summarize llmCalls = count(),\n    inputTokens = sum(gen_ai.usage.input_tokens),\n    outputTokens = sum(gen_ai.usage.output_tokens),\n    by:{agent = service.name}\n| fieldsAdd totalTokens = inputTokens + outputTokens,\n    inOutRatio = round(toDouble(inputTokens) / outputTokens, decimals: 1),\n    avgInputPerCall = round(toDouble(inputTokens) / llmCalls)\n| sort avgInputPerCall desc"
+        value: "fetch spans\n| filter workshop.attendee == \"${WORKSHOP_PREFIX}\" and service.namespace == \"kagent\" and isNotNull(gen_ai.usage.output_tokens)\n| summarize llmCalls = count(),\n    inputTokens = sum(gen_ai.usage.input_tokens),\n    outputTokens = sum(gen_ai.usage.output_tokens),\n    by:{agent = service.name}\n| fieldsAdd totalTokens = inputTokens + outputTokens,\n    inOutRatio = round(toDouble(inputTokens) / outputTokens, decimals: 1),\n    avgInputPerCall = round(toDouble(inputTokens) / llmCalls)\n| sort avgInputPerCall desc"
     title: 'Input : output ratio & avg input per call'
     type: dql
   - id: 8b9b2285-2da8-4bd9-a6bd-d5ba86a82e20
@@ -75,7 +75,7 @@ content:
         timeframe:
           from: now()-7d
           to: now()
-        value: "fetch spans\n| filter service.namespace == \"kagent\"\n    and gen_ai.operation.name == \"execute_tool\" and gen_ai.tool.name != \"(merged tools)\"\n| summarize calls = count(), by:{agent = service.name, tool = gen_ai.tool.name}\n| sort agent asc, calls desc"
+        value: "fetch spans\n| filter workshop.attendee == \"${WORKSHOP_PREFIX}\" and service.namespace == \"kagent\"\n    and gen_ai.operation.name == \"execute_tool\" and gen_ai.tool.name != \"(merged tools)\"\n| summarize calls = count(), by:{agent = service.name, tool = gen_ai.tool.name}\n| sort agent asc, calls desc"
     title: Tools actually called, by agent (7d)
     type: dql
   - id: a1c0ffee-6972-4c0e-9a11-7001c0bba601
@@ -102,7 +102,7 @@ content:
         timeframe:
           from: now()-7d
           to: now()
-        value: "data record(tool = \"k8s_get_resources\"),\n     record(tool = \"k8s_describe_resource\"),\n     record(tool = \"k8s_get_resource_yaml\"),\n     record(tool = \"k8s_get_pod_logs\"),\n     record(tool = \"k8s_get_events\"),\n     record(tool = \"k8s_get_available_api_resources\"),\n     record(tool = \"k8s_get_cluster_configuration\"),\n     record(tool = \"k8s_check_service_connectivity\"),\n     record(tool = \"k8s_apply_manifest\"),\n     record(tool = \"k8s_patch_resource\"),\n     record(tool = \"k8s_scale\"),\n     record(tool = \"k8s_rollout\"),\n     record(tool = \"k8s_label_resource\"),\n     record(tool = \"k8s_annotate_resource\"),\n     record(tool = \"k8s_execute_command\")\n| lookup [\n    fetch spans\n    | filter service.namespace == \"kagent\"\n        and service.name == \"seta_sre_investigator\"\n        and gen_ai.operation.name == \"execute_tool\"\n        and gen_ai.tool.name != \"(merged tools)\"\n    | summarize calls = count(), by:{tool = gen_ai.tool.name}\n  ], sourceField:tool, lookupField:tool, prefix:\"called_\"\n| fieldsAdd calls = coalesce(called_calls, 0)\n| fieldsAdd verdict = if(calls == 0, \"NEVER CALLED — drop candidate\", else: \"used\")\n| fieldsRemove called_tool, called_calls\n| sort calls asc"
+        value: "data record(tool = \"k8s_get_resources\"),\n     record(tool = \"k8s_describe_resource\"),\n     record(tool = \"k8s_get_resource_yaml\"),\n     record(tool = \"k8s_get_pod_logs\"),\n     record(tool = \"k8s_get_events\"),\n     record(tool = \"k8s_get_available_api_resources\"),\n     record(tool = \"k8s_get_cluster_configuration\"),\n     record(tool = \"k8s_check_service_connectivity\"),\n     record(tool = \"k8s_apply_manifest\"),\n     record(tool = \"k8s_patch_resource\"),\n     record(tool = \"k8s_scale\"),\n     record(tool = \"k8s_rollout\"),\n     record(tool = \"k8s_label_resource\"),\n     record(tool = \"k8s_annotate_resource\"),\n     record(tool = \"k8s_execute_command\")\n| lookup [\n    fetch spans\n    | filter workshop.attendee == \"${WORKSHOP_PREFIX}\" and service.namespace == \"kagent\"\n        and service.name == \"${WORKSHOP_PREFIX}-sre-agent\"\n        and gen_ai.operation.name == \"execute_tool\"\n        and gen_ai.tool.name != \"(merged tools)\"\n    | summarize calls = count(), by:{tool = gen_ai.tool.name}\n  ], sourceField:tool, lookupField:tool, prefix:\"called_\"\n| fieldsAdd calls = coalesce(called_calls, 0)\n| fieldsAdd verdict = if(calls == 0, \"NEVER CALLED — drop candidate\", else: \"used\")\n| fieldsRemove called_tool, called_calls\n| sort calls asc"
     title: Granted vs. called tools (SRE agent) — drop the zero-call rows
     type: dql
   - id: 310445da-9dc0-4495-bd4e-0cee95c1da7c
@@ -124,7 +124,7 @@ content:
         timeframe:
           from: now()-7d
           to: now()
-        value: "fetch spans\n| filter service.namespace == \"kagent\" and isNotNull(gen_ai.usage.input_tokens)\n| summarize llmCalls = count(),\n    avgInputPerCall = round(avg(gen_ai.usage.input_tokens)),\n    medianInputPerCall = round(median(gen_ai.usage.input_tokens)),\n    totalInputTokens = sum(gen_ai.usage.input_tokens), by:{service.name}\n| sort avgInputPerCall desc"
+        value: "fetch spans\n| filter workshop.attendee == \"${WORKSHOP_PREFIX}\" and service.namespace == \"kagent\" and isNotNull(gen_ai.usage.input_tokens)\n| summarize llmCalls = count(),\n    avgInputPerCall = round(avg(gen_ai.usage.input_tokens)),\n    medianInputPerCall = round(median(gen_ai.usage.input_tokens)),\n    totalInputTokens = sum(gen_ai.usage.input_tokens), by:{service.name}\n| sort avgInputPerCall desc"
     title: Avg input tokens per call, by agent (switch the timeframe for before vs after)
     type: dql
   - drilldownPath: []
@@ -140,7 +140,7 @@ content:
           to: now()
         value: 'fetch spans
 
-          | filter service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
+          | filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.input_tokens)
 
           | makeTimeseries inputTokens = sum(gen_ai.usage.input_tokens), by:{service.name}'
     title: Input-token trend by agent — watch the top line bend down after the change

@@ -77,10 +77,20 @@ if [ ${#missing[@]} -gt 0 ]; then
   exit 1
 fi
 
+# Default the evaluated service.name from the shared-tenant prefix (ISI-6986): the
+# SRE agent's spans arrive as ${WORKSHOP_PREFIX}-sre-agent, which is exactly what the
+# .dt-eval.yaml scope.service must match. An explicit DT_EVAL_SERVICE still wins.
+if [ -z "${DT_EVAL_SERVICE:-}" ] && [ -n "${WORKSHOP_PREFIX:-}" ]; then
+  DT_EVAL_SERVICE="${WORKSHOP_PREFIX}-sre-agent"
+  echo "DT_EVAL_SERVICE defaulted to '${DT_EVAL_SERVICE}' from WORKSHOP_PREFIX." >&2
+fi
+
 if [ -z "${DT_EVAL_SERVICE:-}" ]; then
   cat >&2 <<EOF
-ERROR: DT_EVAL_SERVICE is not set — this is the service.name of the agent to
-evaluate. Workshop defaults: sre-agent or bmad-orchestrator. Confirm with DQL
+ERROR: DT_EVAL_SERVICE is not set and WORKSHOP_PREFIX is unset — DT_EVAL_SERVICE is
+the service.name of the agent to evaluate. On the shared workshop tenant set
+WORKSHOP_PREFIX (it defaults DT_EVAL_SERVICE to \${WORKSHOP_PREFIX}-sre-agent), or
+set DT_EVAL_SERVICE directly. Confirm the value with DQL
 (Dynatrace Notebook / run-dt-query capability):
 
   fetch spans, from: now() - 2h

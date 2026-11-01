@@ -15,6 +15,11 @@ metadata:
   annotations:
     # Skip the OneAgent/host checks — this DynaKube does no full-stack injection.
     feature.dynatrace.com/automatic-kubernetes-api-monitoring: "true"
+    # Per-attendee cluster name in Dynatrace Kubernetes API monitoring on the shared
+    # tenant (ISI-6986). Rendered from ${WORKSHOP_PREFIX} by the envsubst at
+    # cluster/install.sh (same step that injects ${DT_TENANT_URL}); keep it aligned
+    # with the collector's k8s.cluster.name upsert so topology and spans agree.
+    feature.dynatrace.com/automatic-kubernetes-api-monitoring-cluster-name: "${WORKSHOP_PREFIX}"
 spec:
   # ${DT_TENANT_URL} e.g. https://abc12345.live.dynatrace.com  ->  .../api
   apiUrl: ${DT_TENANT_URL}/api
