@@ -77,6 +77,33 @@ deploy. To *update* a dashboard later, download it first
 (`dtctl get dashboard <id> -o yaml --plain > file.yaml`), edit, and re-`apply` —
 this preserves UI edits.
 
+## UI import (no dtctl)
+
+Prefer the Dynatrace UI? Download the **UI-importable JSON** and upload it in
+your own tenant — same artifacts, no CLI. The JSON is **generated** from the
+YAML above by [`scripts/gen-optimization-json.sh`](../../../scripts/gen-optimization-json.sh)
+(via `yq -o=json`) and is never hand-maintained, so the two paths cannot drift
+(a CI regen-diff guard enforces it).
+
+| Artifact | Download | Import from |
+|----------|----------|-------------|
+| Dashboard | [ai-agent-optimization.dashboard.json](../../../docs/assets/optimization/ai-agent-optimization.dashboard.json) | Dashboards → **Upload** |
+| Notebook (before/after) | [ai-agent-optimization-before-after.notebook.json](../../../docs/assets/optimization/ai-agent-optimization-before-after.notebook.json) | Notebooks → **Upload** |
+| Workflow | [ai-agent-optimization.workflow.json](../../../docs/assets/optimization/ai-agent-optimization.workflow.json) | Workflows → **Upload** |
+
+Two one-time edits before uploading (the same rendering the `dtctl` path does):
+
+1. **Prefix** — the dashboard/notebook JSON still carry the literal
+   `${WORKSHOP_PREFIX}`. Find/replace it with your attendee prefix before upload
+   (the `dtctl` path does this via `envsubst`).
+2. **Guardian objectId** — the workflow JSON carries the reference tenant's
+   guardian `objectId` (base64). After you create your own guardian, repoint it:
+   `dtctl get settings --schema app:dynatrace.site.reliability.guardian:guardians -o json --plain | grep -B2 "AI Agent Quality"`
+   gives the new `objectId` — paste it into `tasks.run_validation.input.objectId`.
+
+The **guardian** stays Settings/dtctl-only (there is no UI "upload a guardian"
+surface); create it with the `dtctl create settings` command above.
+
 ## The guardian
 
 A Site Reliability Guardian is the regression gate behind the optimization loop.
