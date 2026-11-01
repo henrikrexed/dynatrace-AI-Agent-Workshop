@@ -202,8 +202,16 @@ scores back in a Dynatrace Notebook:
 ```dql
 fetch bizevents
 | filter event.type == "gen_ai.evaluation.result"
+| filter service.name == "${WORKSHOP_PREFIX}-sre-agent"
 | summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
 ```
+
+!!! note "Shared tenant — keep the `service.name` filter"
+    dt-evals writes each `gen_ai.evaluation.result` bizevent carrying the evaluated
+    agent's `service.name`, so the `service.name == "${WORKSHOP_PREFIX}-sre-agent"`
+    clause scopes the read-back to **your** results on the shared workshop tenant.
+    Replace `${WORKSHOP_PREFIX}` with your own prefix (`echo $WORKSHOP_PREFIX`).
+    Drop the clause and you summarize every attendee's eval results at once.
 
 Details, including the shared-vs-per-attendee tenant model:
 [`evals/dt-evals/README.md`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/evals/dt-evals/README.md).

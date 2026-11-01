@@ -10,7 +10,7 @@ The whole path is four steps:
 ```mermaid
 flowchart LR
   A[1. Fork the repo] --> B[2. Create a Codespace<br/>on YOUR fork]
-  B --> C[3. Add Codespace secrets]
+  B --> C[3. Set WORKSHOP_PREFIX<br/>+ Codespace secrets]
   C --> D[4. Create the 5 tokens<br/>with the right scopes]
   D --> E[Rebuild / open Codespace<br/>cluster comes up automatically]
 ```
@@ -65,6 +65,19 @@ automatically.
     Codespace before adding them, add the secrets, then run
     **Codespaces: Rebuild Container** so the values are picked up.
 
+!!! warning "Pick your `WORKSHOP_PREFIX` — it's REQUIRED and asked for up front"
+    This is a **shared Dynatrace tenant**: every attendee's agents, clusters, and
+    telemetry land in the same environment. `WORKSHOP_PREFIX` is your personal
+    isolation label — it stamps your namespaces, your agents'
+    `service.name` (`<prefix>-sre-agent`), and the `workshop.attendee` /
+    `k8s.cluster.name` on every signal, so the dashboards, evals, and DQL you run
+    only show **your** data. The **Create codespace with options…** dialog prompts
+    for it alongside the secrets below. It is **fail-closed** — if it is unset or
+    invalid the bootstrap stops rather than render unscoped. Pick a lowercase label
+    that starts with a letter, 2–19 chars of `a-z 0-9 -` (e.g. `team-alpha`), and
+    keep it to yourself. You set it once at create; everything downstream resolves
+    from it automatically.
+
 ---
 
 ## 3. Add your Codespace secrets
@@ -87,6 +100,7 @@ page above. Reference: GitHub's
 
 | Secret | Required | What it is |
 |--------|:---:|---------|
+| `WORKSHOP_PREFIX` | ✅ | Your shared-tenant isolation prefix. **Not a token** — a lowercase label (start with a letter, 2–19 chars of `a-z 0-9 -`, e.g. `team-alpha`). Fail-closed: the bootstrap stops without it. See the warning in Step 2. |
 | `DT_TENANT_URL` | ✅ | Dynatrace tenant URL, e.g. `https://abc12345.live.dynatrace.com`. |
 | `DT_API_TOKEN` | ✅ | Dynatrace **ingest** token (traces/metrics/logs) — OTLP export + DynaKube `dataIngestToken`. See token **A** below. |
 | `DT_PLATFORM_TOKEN` | ✅ | Dynatrace **platform** token (`dt0s16`) for `dtctl` — token **B**. |
@@ -199,16 +213,23 @@ requests on your demo repo.
 ## 5. Confirm you're ready
 
 Open (or rebuild) the Codespace. `postCreate` runs automatically and builds the
-local cluster. When the terminal settles, verify:
+local cluster. When it finishes it prints a **bootstrap banner** that echoes your
+resolved `WORKSHOP_PREFIX`, a ready-to-paste `workshop.attendee` DQL filter, and a
+link back to this onboarding page — so your isolation label is the first thing you
+confirm. When the terminal settles, verify:
 
 ```bash
-bash .devcontainer/bootstrap/check-secrets.sh   # all required secrets present?
+bash .devcontainer/bootstrap/check-secrets.sh   # WORKSHOP_PREFIX valid + required secrets present?
+echo "$WORKSHOP_PREFIX"                          # your isolation prefix (also in the banner)
 kubectl get nodes                                # a Ready node?
 kubectl get namespaces                           # dynatrace, kagent, tetragon, phoenix, …?
 ```
 
-A Ready node and the staged namespaces mean the benchmark is up. You're done
-with onboarding.
+A valid prefix, a Ready node, and the staged namespaces mean the benchmark is up.
+You're done with onboarding. Everywhere a later module shows a Dynatrace DQL or
+Phoenix query, add `workshop.attendee == "<your-prefix>"` (or scope by
+`service.name == "<your-prefix>-sre-agent"`) so you only see your own data on the
+shared tenant.
 
 ## Next
 
