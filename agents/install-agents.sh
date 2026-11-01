@@ -83,24 +83,30 @@ done
 ok "MCP layer applied"
 
 # --- 2/3  SRE agent ----------------------------------------------------------
+# Rendered through envsubst so ${WORKSHOP_PREFIX} in the Agent name/modelConfig
+# resolves (kustomize alone does not expand env vars). `kubectl kustomize` builds
+# the overlay (namespace injection) first, then envsubst substitutes only the
+# whitelisted vars, then apply.
 log "2/3  SRE agent"
-kubectl apply -k "${SCRIPT_DIR}/sre"
+kubectl kustomize "${SCRIPT_DIR}/sre" | envsubst "${SUBST_VARS}" | kubectl apply -f -
 ok "SRE agent applied"
 
 # --- 3/3  BMAD crew ----------------------------------------------------------
 log "3/3  BMAD crew (analyst, pm, architect, developer, qa, orchestrator)"
-kubectl apply -k "${SCRIPT_DIR}/bmad-crew"
+kubectl kustomize "${SCRIPT_DIR}/bmad-crew" | envsubst "${SUBST_VARS}" | kubectl apply -f -
 ok "BMAD crew applied"
 
-cat <<'EOF'
+# Names below carry your ${WORKSHOP_PREFIX}; envsubst resolves them so the printed
+# commands are copy-pasteable as-is (kagent-tool-server is the Helm built-in — never prefixed).
+envsubst "${SUBST_VARS}" <<'EOF'
 
 ================================================================
  Phase 3 agents & MCP wiring applied.
 
  Verify the tool servers registered their tools:
    kubectl -n kagent get mcpserver,remotemcpserver
-   kubectl -n kagent get remotemcpserver kagent-tool-server   -o jsonpath='{.status.discoveredTools[*].name}'; echo
-   kubectl -n kagent get remotemcpserver github-mcp-remote     -o jsonpath='{.status.discoveredTools[*].name}'; echo
+   kubectl -n kagent get remotemcpserver kagent-tool-server                -o jsonpath='{.status.discoveredTools[*].name}'; echo
+   kubectl -n kagent get remotemcpserver ${WORKSHOP_PREFIX}-github-mcp-remote -o jsonpath='{.status.discoveredTools[*].name}'; echo
 
  Verify the agents are Accepted:
    kubectl -n kagent get agents
@@ -109,10 +115,10 @@ cat <<'EOF'
    kubectl run a2a --rm -i --restart=Never --image=curlimages/curl:8.10.1 -n kagent \
      --command -- curl -s -m 300 -X POST -H 'Content-Type: application/json' \
      --data '{"jsonrpc":"2.0","id":"1","method":"message/send","params":{"message":{"role":"user","messageId":"m1","kind":"message","parts":[{"kind":"text","text":"List the pods in the kagent namespace and tell me if any are unhealthy."}]}}}' \
-     http://kagent-controller.kagent:8083/api/a2a/kagent/sre-agent
+     http://kagent-controller.kagent:8083/api/a2a/kagent/${WORKSHOP_PREFIX}-sre-agent
 
  BMAD orchestrator (swap the text for your demo repo + task):
-   ... http://kagent-controller.kagent:8083/api/a2a/kagent/bmad-orchestrator
+   ... http://kagent-controller.kagent:8083/api/a2a/kagent/${WORKSHOP_PREFIX}-bmad-orchestrator
 
  Or use the kagent UI:  kubectl -n kagent port-forward svc/kagent-ui 8080:8080
 

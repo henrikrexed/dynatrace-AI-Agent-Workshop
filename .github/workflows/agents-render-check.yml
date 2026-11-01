@@ -1,0 +1,35 @@
+# ISI-6989 (WS3 of ISI-6986) — static render/consistency gate for the agent &
+# MCP manifests. The human-facing names are templated with ${WORKSHOP_PREFIX};
+# this job renders them exactly as agents/install-agents.sh does (envsubst) with
+# a sample prefix and fails the PR if any name leaks unprefixed or a placeholder
+# is left unresolved. No cluster required — pure local render.
+name: agents-render-check
+
+on:
+  pull_request:
+    paths:
+      - 'agents/**'
+      - '.github/workflows/agents-render-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'agents/**'
+      - '.github/workflows/agents-render-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure envsubst (gettext)
+        run: |
+          if ! command -v envsubst >/dev/null; then
+            sudo apt-get update && sudo apt-get install -y gettext-base
+          fi
+      - name: Render & consistency check
+        run: bash agents/check-render.sh
