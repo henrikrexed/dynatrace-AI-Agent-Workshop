@@ -32,8 +32,18 @@
 #     branch), OR
 #   - push a `ci/live-acceptance/**` branch (no actions:write PAT scope needed —
 #     the push itself is the trigger).
+#
+# ISI-6986 WS5 (ISI-6991) EXTENSION
+#   This run now also PROVES the ${WORKSHOP_PREFIX} isolation mechanism:
+#     - a STATIC gate (cluster/check-prefix-render.sh) renders every templated
+#       asset with a sample prefix and fails on any unprefixed name / unresolved
+#       template — collector stamp, optimization DQL filters, agent/MCP CRs;
+#     - a LIVE assertion inspects the APPLIED collector + kagent CRs and fails
+#       if a present resource is mis-prefixed (absent => warn, as a degraded run).
+#   WORKSHOP_PREFIX is also now REQUIRED by cluster/install.sh (fail-closed), so
+#   it is set in the env block below — the bootstrap would abort without it.
 
-name: live-acceptance (ISI-6835 §5)
+name: live-acceptance (ISI-6835 §5 + ISI-6986 WS5 prefix)
 
 on:
   workflow_dispatch:
@@ -51,6 +61,11 @@ jobs:
     env:
       CLUSTER_TOOL: kind
       CLUSTER_NAME: workshop
+      # WORKSHOP_PREFIX — REQUIRED by cluster/install.sh since ISI-6986 (it
+      # fail-closes without it) and the value WS5 asserts end-to-end. A dashed
+      # worst-case test prefix exercises the name-boundary logic. Must match
+      # ^[a-z][a-z0-9-]{1,18}$ (see .devcontainer/bootstrap/lib.sh).
+      WORKSHOP_PREFIX: ci-accept
       # --- Pinned toolchain versions — KEEP IN SYNC with .devcontainer/Dockerfile ARGs ---
       KUBECTL_VERSION: v1.31.4
       HELM_VERSION: v3.16.3
@@ -114,6 +129,17 @@ jobs:
       - name: Ensure envsubst + curl present
         run: sudo apt-get update -qq && sudo apt-get install -y -qq gettext-base curl >/dev/null
 
+      - name: Prefix render/consistency (ISI-6986 WS5 — STATIC, no cluster)
+        # Authoritative WS5 gate. Renders every ${WORKSHOP_PREFIX}-templated asset
+        # the way install chains do (scoped envsubst) with a dashed sample prefix
+        # and fails the run if ANY name leaks unprefixed or a template is left
+        # unresolved — across the collector (workshop.attendee + k8s.cluster.name),
+        # the optimization DQL assets (attendee-scoped filters, prefixed
+        # service.name), and the agent/MCP CRs (delegates to agents/check-render.sh:
+        # prefixed kagent names + resolved orchestrator child list). Deterministic,
+        # secret-independent — proves rendering before the live cluster even boots.
+        run: bash cluster/check-prefix-render.sh
+
       - name: Bootstrap — postCreate (kind workshop cluster + cluster/install.sh deploy)
         id: bootstrap
         # Non-fatal here: the authoritative pass/fail is the verifier below, which
@@ -129,6 +155,63 @@ jobs:
         run: |
           echo "== nodes =="; kubectl get nodes -o wide 2>&1 || echo "(no cluster)"
           echo "== pods -A =="; kubectl get pods -A 2>&1 || true
+
+      - name: Live prefix assertion (ISI-6986 WS5 — what actually got APPLIED)
+        # NON-BLOCKING corroboration of the STATIC gate (which is the authoritative,
+        # deterministic, secret-independent hard gate — a bare/unresolved name fails
+        # the run there). Here we inspect the resources install.sh actually applied
+        # and prove they carry the LIVE ${WORKSHOP_PREFIX}. `continue-on-error: true`
+        # because this depends on a live, secret-gated cluster: a secret-less run
+        # legitimately has NO kagent agents and a Phoenix-only collector, so a miss
+        # here must NOT red the WS5 gate or skip the downstream verifier — it only
+        # surfaces warnings/annotations. The collector value is read with `yq`
+        # (order-independent) because `kubectl -o yaml` sorts map keys alphabetically.
+        if: always()
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          fail=0
+          if ! kubectl get nodes >/dev/null 2>&1; then
+            echo "::warning::no cluster — skipping live prefix assertion (static step already proved rendering)"
+            exit 0
+          fi
+          echo "WORKSHOP_PREFIX=${WORKSHOP_PREFIX}"
+
+          # 1. Applied collector stamps workshop.attendee = ${WORKSHOP_PREFIX}.
+          #    yq reads the structured spec.config regardless of key ordering.
+          if kubectl get opentelemetrycollector otel-gateway -n opentelemetry-operator-system -o yaml >/tmp/applied-collector.yaml 2>/dev/null; then
+            got="$(yq '.spec.config.processors.resource.attributes[] | select(.key == "workshop.attendee") | .value' /tmp/applied-collector.yaml 2>/dev/null | head -1)"
+            if [ "${got}" = "${WORKSHOP_PREFIX}" ]; then
+              echo "ok: applied collector stamps workshop.attendee=${WORKSHOP_PREFIX}"
+            else
+              echo "::warning::applied collector workshop.attendee='${got}' != '${WORKSHOP_PREFIX}'"; fail=1
+            fi
+          else
+            echo "::warning::OpenTelemetryCollector otel-gateway not present — collector prefix not asserted live"
+          fi
+
+          # 2. Applied kagent Agent CR is named ${WORKSHOP_PREFIX}-sre-agent, and
+          #    no BARE sre-agent / seta_sre_investigator Agent leaked.
+          agents="$(kubectl get agents.kagent.dev -n kagent -o name 2>/dev/null || true)"
+          if [ -n "${agents}" ]; then
+            echo "applied kagent agents:"; printf '%s\n' "${agents}"
+            if grep -qE "/${WORKSHOP_PREFIX}-sre-agent$" <<<"${agents}"; then
+              echo "ok: applied Agent ${WORKSHOP_PREFIX}-sre-agent present"
+            else
+              echo "::warning::no applied Agent named ${WORKSHOP_PREFIX}-sre-agent"; fail=1
+            fi
+            if grep -qE "/(sre-agent|seta_sre_investigator)$" <<<"${agents}"; then
+              echo "::warning::a BARE (unprefixed) kagent Agent is applied — must be ${WORKSHOP_PREFIX}-*"; fail=1
+            fi
+          else
+            echo "::warning::no kagent Agent CRs present — agent prefix not asserted live (model-provider secret likely unset)"
+          fi
+
+          if [ "${fail}" -ne 0 ]; then
+            echo "::warning::live prefix corroboration had misses (non-blocking — see annotations; static gate is authoritative)"
+          else
+            echo "live prefix assertion: all present resources carry WORKSHOP_PREFIX=${WORKSHOP_PREFIX}"
+          fi
 
       - name: Wait for NodePort UIs to answer (Phoenix :6006 / kagent-UI :8080)
         # Pure NodePort path — kind maps containerPort 30606->6006 and 30080->8080
