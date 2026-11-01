@@ -781,11 +781,16 @@ raw DeepSeek key in this (public) repo.</p>
   B -- "{proxy_url, virtual_key, model}" --&gt; A
   C -- "real DeepSeek key&lt;br/&gt;(host-only)" --&gt; D[api.deepseek.com]</code></pre>
 <ul>
-<li>The dispenser is exposed publicly over <strong>Tailscale Funnel</strong> (HTTPS) at
-  <code>https://litellm-proxy.&lt;tailnet&gt;.ts.net/dispense</code>. This URL is <strong>not</strong> baked into
-  the repo — you distribute it to attendees as the required <code>WORKSHOP_DISPENSER_URL</code>
-  secret (alongside the room password); <code>dispense-llm.sh</code> fails closed without it
-  (ISI-7000).</li>
+<li>The dispenser is exposed publicly over <strong>Tailscale Funnel</strong> (HTTPS). Its hostname
+  is an <strong>opaque, rotatable</strong> Tailscale machine name
+  (<code>https://&lt;dispenser-host&gt;.&lt;tailnet&gt;.ts.net/dispense</code>), <strong>not</strong> a guessable name,
+  and the live value is <strong>never baked into the repo</strong>. You distribute it to attendees
+  as the required <code>WORKSHOP_DISPENSER_URL</code> secret (alongside the room password) from
+  the value handed to you privately by the proxy operator; <code>dispense-llm.sh</code> fails
+  closed without it (ISI-7000). The hostname can be rotated at any time (e.g. after a
+  leak) with no attendee-visible change other than a new secret value — the GET
+  <code>/dispense</code> + <code>X-Room-Password</code> contract is identical. (Rotation procedure lives
+  in the private <code>proxmox-clusters</code> repo, runbook <code>ISI-7001</code>.)</li>
 <li>A valid <strong>room password</strong> → the dispenser mints a fresh, budget-capped virtual
   key scoped to the single <code>deepseek-chat</code> model and returns the proxy endpoint +
   key. The attendee's bootstrap writes them to the gitignored <code>.workshop-llm.env</code>.</li>
