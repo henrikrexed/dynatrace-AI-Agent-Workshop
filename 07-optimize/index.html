@@ -983,19 +983,27 @@ data on screen:</p>
 <p>See <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/blob/main/cluster/dynatrace/optimization/README.md"><code>cluster/dynatrace/optimization/README.md</code></a>
 for the guardian + workflow (they render the same way).</p>
 <p>No <code>dtctl</code>? Download the UI-importable JSON and upload it in your own tenant
-(Dashboards / Notebooks → <strong>Upload</strong>). The JSON still carries the
-<code>${WORKSHOP_PREFIX}</code> placeholder — find/replace it with your attendee prefix
-before uploading (the dtctl path does the same via <code>envsubst</code>):</p>
+(Dashboards / Notebooks / Workflows → <strong>Upload</strong>):</p>
 <ul>
+<li><a href="../assets/optimization/ai-agent-workflow-steps.notebook.json">ai-agent-workflow-steps.notebook.json</a> — <em>Read an AI Agent Run</em> (start here)</li>
 <li><a href="../assets/optimization/ai-agent-optimization.dashboard.json">ai-agent-optimization.dashboard.json</a></li>
-<li>
-<p><a href="../assets/optimization/ai-agent-optimization-before-after.notebook.json">ai-agent-optimization-before-after.notebook.json</a></p>
-</li>
-<li>
-<p><strong>Notebook — <em>Read an AI Agent Run</em></strong> (<code>ai-agent-workflow-steps</code>): walks one
+<li><a href="../assets/optimization/ai-agent-optimization-before-after.notebook.json">ai-agent-optimization-before-after.notebook.json</a></li>
+<li><a href="../assets/optimization/ai-agent-optimization.workflow.json">ai-agent-optimization.workflow.json</a> — scheduled guardian run</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Already personalized on your workshop site</p>
+<p>When you open this page from <strong>your own in-cluster docs site</strong> (the
+<code>mkdocs</code> service in your devcontainer — <code>http://localhost:8000</code>), these
+downloads are rendered with <strong>your</strong> <code>WORKSHOP_PREFIX</code> already baked into
+every DQL filter (<code>workshop.attendee == "&lt;your-prefix&gt;"</code>), so you can
+upload them as-is. On the public GitHub Pages copy they keep the literal
+<code>${WORKSHOP_PREFIX}</code> placeholder — find/replace it with your attendee
+prefix before uploading (the <code>dtctl</code> path does the same via <code>envsubst</code>).</p>
+</div>
+<ul>
+<li><strong>Notebook — <em>Read an AI Agent Run</em></strong> (<code>ai-agent-workflow-steps</code>): walks one
   run from the crew list down to the per-hop token bill — the understand-first
-  companion to the section below. Start here.</p>
-</li>
+  companion to the section below. Start here.</li>
 <li><strong>Dashboard</strong> — <em>AI Agent Optimization</em>: spend ranking, input:output ratio,
   tools-actually-used, loop detection, token-trend.</li>
 <li><strong>Notebook — <em>AI Agent Optimization — before/after</em></strong>: the observe → find →

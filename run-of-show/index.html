@@ -1111,10 +1111,20 @@ telemetry — so a low score is one click from the trace that caused it.</p>
 judge key is supplied automatically by the room-password proxy
 (<code>WORKSHOP_ROOM_PASSWORD</code>), so you don't set <code>OPENAI_API_KEY</code> yourself:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>fetch spans, from: now() - 2h
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>| filter isNotNull(gen_ai.operation.name) or isNotNull(gen_ai.request.model)
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>| summarize span_count = count(), by: { service.name }
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>| sort span_count desc
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}"
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>| filter isNotNull(gen_ai.operation.name) or isNotNull(gen_ai.request.model)
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>| summarize span_count = count(), by: { service.name }
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>| sort span_count desc
 </code></pre></div>
+<div class="admonition note">
+<p class="admonition-title"><code>${WORKSHOP_PREFIX}</code> is <em>your</em> attendee prefix</p>
+<p>The workshop runs on a <strong>shared</strong> Dynatrace tenant, so every query is scoped
+to <code>workshop.attendee == "${WORKSHOP_PREFIX}"</code> — the collector stamps your
+spans with it (and your agent's <code>service.name</code> is <code>${WORKSHOP_PREFIX}-sre-agent</code>;
+ISI-6988). In the docs you read <strong>inside your Codespace</strong> this is already
+filled in with your real prefix; on the published site it stays as the literal
+placeholder — replace it with your own value (<code>echo $WORKSHOP_PREFIX</code>).</p>
+</div>
 <p><strong>Apply this.</strong> The shipped config enables relevance, faithfulness, hallucination,
 coherence, toxicity, and prompt-injection metrics, and sets thresholds that make
 the run <strong>exit non-zero on a breach</strong> — a ready-made CI gate.</p>
@@ -1159,7 +1169,8 @@ quality.</p>
 <p><strong>Do it.</strong> In a Dynatrace Notebook:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>fetch bizevents
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>| filter event.type == "gen_ai.evaluation.result"
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>| filter service.name == "${WORKSHOP_PREFIX}-sre-agent"
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>| summarize avg(toDouble(gen_ai.evaluation.score.value)), by: { gen_ai.evaluation.name }
 </code></pre></div>
 <p><strong>Apply this.</strong> You get an average score per evaluator (relevance, faithfulness,
 hallucination, …). Because the scores live next to the spans, any low score is one
@@ -1191,7 +1202,7 @@ called is pure prompt overhead), and <strong>how many tokens is each agent burni
 (especially the input:output ratio, your waste compass).</p>
 <p><strong>Do it — token utilization (rank agents by spend):</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>fetch spans
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>| filter service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent" and isNotNull(gen_ai.usage.output_tokens)
 <a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>| summarize llmCalls = count(),
 <a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    inputTokens  = sum(gen_ai.usage.input_tokens),
 <a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    outputTokens = sum(gen_ai.usage.output_tokens),
@@ -1203,10 +1214,11 @@ called is pure prompt overhead), and <strong>how many tokens is each agent burni
 </code></pre></div>
 <p><strong>Do it — tool usage (what an agent really calls):</strong></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>fetch spans
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>| filter service.namespace == "kagent" and service.name == "&lt;agent-service-name&gt;"
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>| summarize calls = count(), by:{tool = gen_ai.tool.name}
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>| sort calls desc
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>| filter workshop.attendee == "${WORKSHOP_PREFIX}" and service.namespace == "kagent"
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    and service.name == "${WORKSHOP_PREFIX}-sre-agent"
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    and gen_ai.operation.name == "execute_tool" and gen_ai.tool.name != "(merged tools)"
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>| summarize calls = count(), by:{tool = gen_ai.tool.name}
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>| sort calls desc
 </code></pre></div>
 <p><strong>Apply this.</strong> Diff the tools the traces prove an agent uses against the tool set
 it was <em>granted</em> — every unused tool is a JSON schema injected into <strong>every</strong> prompt
