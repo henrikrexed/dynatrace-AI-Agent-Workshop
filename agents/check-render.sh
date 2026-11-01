@@ -85,7 +85,10 @@ for expect in \
   "${WORKSHOP_PREFIX}-bmad-developer" \
   "${WORKSHOP_PREFIX}-bmad-qa" \
   "${WORKSHOP_PREFIX}-bmad-orchestrator" ; do
-  if ! printf '%s' "${RENDERED}" | grep -qF "${expect}"; then
+  # Herestring, not `printf | grep -q`: under `set -o pipefail` a `grep -q`
+  # closes the pipe on first match, the writer catches SIGPIPE, and pipefail
+  # then reports the pipeline as failed even on a successful match (a flake).
+  if ! grep -qF "${expect}" <<<"${RENDERED}"; then
     err "expected prefixed name missing from render: ${expect}"
     fail=1
   fi
