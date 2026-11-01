@@ -49,9 +49,12 @@ them.
    Forking also publishes your own copy of this site via GitHub Pages (see below).
 2. In your fork: **Code → Codespaces → Create codespace on `main`**, choosing a
    **4-core / 16 GB** (or larger) machine type.
-3. Set the required Codespace secrets — your Dynatrace tokens, `GH_PAT`,
-   `GH_DEMO_REPO`, and `LLM_API_KEY`. The full list and how to generate each is
-   in [`.devcontainer/SECRETS.md`](.devcontainer/SECRETS.md).
+3. In the **Create codespace with options…** dialog, set your **`WORKSHOP_PREFIX`**
+   (required — a lowercase label like `team-alpha`) and the required Codespace
+   secrets — your Dynatrace tokens, `GH_PAT`, `GH_DEMO_REPO`, and `LLM_API_KEY`.
+   The prefix isolates **your** agents, clusters, and telemetry on the shared
+   Dynatrace tenant; the bootstrap is fail-closed without it. The full list and how
+   to generate each is in [`.devcontainer/SECRETS.md`](.devcontainer/SECRETS.md).
 4. Wait for `postCreate` to finish. You'll have a running local Kubernetes
    cluster and the full toolchain.
 5. Sanity-check with `kubectl get nodes`, then open the workshop:
