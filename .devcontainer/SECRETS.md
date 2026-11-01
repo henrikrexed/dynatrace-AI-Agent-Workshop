@@ -12,6 +12,17 @@ GitHub → **Settings → Codespaces → Secrets** (user-level) or the repo's
 to the `henrikrexed/dynatrace-AI-Agent-Workshop` repository. After adding/rotating
 a secret, **rebuild or restart the Codespace** so the new value is injected.
 
+## Required: workshop prefix (fail-closed)
+
+| Variable | Purpose | Example / format |
+|----------|---------|------------------|
+| `WORKSHOP_PREFIX` | **Not a secret**, but prompted in the same create dialog. Isolates this attendee's objects (namespaces, OTel attributes) on the **shared** Dynatrace tenant (ISI-6986). **Required — fail-closed**: the bootstrap stops with a clear message if it is unset or malformed (no silent default, no auto-derive). | lowercase RFC-1123 label `^[a-z][a-z0-9-]{1,18}$` — start with a letter, 2-19 chars, e.g. `team-alpha` |
+
+> `WORKSHOP_PREFIX` is validated by `check-secrets.sh` and by each install step
+> (`cluster/install.sh`, `cluster/secrets.sh`, `agents/install-agents.sh`); those
+> scripts abort rather than render an unresolved `${WORKSHOP_PREFIX}`. Downstream
+> template substitutions are owned by later workstreams — WS1 only plumbs the var.
+
 ## Required secrets
 
 | Variable | Purpose | Example / format |

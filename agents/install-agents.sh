@@ -27,6 +27,16 @@ kubectl cluster-info >/dev/null 2>&1 || { err "cluster not reachable — run clu
 command -v envsubst >/dev/null || { err "envsubst not found (gettext) — needed to inject tokens at apply time"; exit 1; }
 kubectl get ns kagent >/dev/null 2>&1 || { err "namespace kagent missing — run cluster/install.sh (Phase 2) first"; exit 1; }
 
+# WORKSHOP_PREFIX — REQUIRED + fail-closed (ISI-6986). Agent/MCP manifests template
+# OTel attributes (service.name etc.) with it to isolate this attendee on the shared
+# tenant. Added to SUBST_VARS below so envsubst resolves ${WORKSHOP_PREFIX}; abort
+# now rather than render it unresolved. No auto-derive. Do NOT rename the kagent ns.
+if ! [[ "${WORKSHOP_PREFIX:-}" =~ ^[a-z][a-z0-9-]{1,18}$ ]]; then
+  err "WORKSHOP_PREFIX unset or invalid ('${WORKSHOP_PREFIX:-}') — set it in the Codespace secrets (lowercase, start with a letter, 2-19 chars of a-z 0-9 '-', e.g. team-alpha) and re-run."
+  exit 1
+fi
+export WORKSHOP_PREFIX
+
 # --- preflight: default Kubernetes tooling must be present ------------------
 if ! kubectl -n kagent get remotemcpserver kagent-tool-server >/dev/null 2>&1; then
   warn "kagent-tool-server not found — the SRE agent's k8s/networking tools need it."
@@ -61,7 +71,7 @@ export GH_PAT="${GH_PAT:-${GITHUB_TOKEN:-}}"
 [ -n "${GH_PAT}" ]        || warn "GH_PAT unset — BMAD crew installs but GitHub tools will not authenticate."
 
 # Only these vars are substituted; every other $ in the manifests is left intact.
-SUBST_VARS='${GITHUB_MCP_IMAGE} ${GH_PAT}'
+SUBST_VARS='${GITHUB_MCP_IMAGE} ${GH_PAT} ${WORKSHOP_PREFIX}'
 
 # --- 1/3  MCP layer: shared ModelConfig + GitHub tool server -----------------
 # Applied file-by-file (NOT via kustomize) so envsubst can inject the ${...}
