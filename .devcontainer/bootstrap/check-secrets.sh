@@ -58,8 +58,11 @@ echo "[Phase 3/5] Dynatrace platform — dtctl (platform token)"
 check DT_PLATFORM_TOKEN required "Dynatrace platform token (dt0s16) for dtctl"
 check DT_ENVIRONMENT    optional "platform apps URL (https://<env>.apps.dynatrace.com); derived from DT_TENANT_URL if unset"
 
-echo "[Phase 3] Agents LLM + GitHub MCP (BMAD 'bad crew')"
-check_either DEEPSEEK_API_KEY LLM_API_KEY required "model-provider key powering the kagent agents + eval judge (DeepSeek by default)"
+echo "[Phase 3] Agents LLM access — room-password proxy (ISI-6996)"
+check WORKSHOP_ROOM_PASSWORD required "the workshop room password — the ONLY model credential you supply; dispense-llm.sh exchanges it for a per-attendee LiteLLM-proxy endpoint + minted virtual key powering the kagent agents + Phoenix/dt-evals judge (no raw DeepSeek key needed)"
+check_either DEEPSEEK_API_KEY LLM_API_KEY optional "direct DeepSeek key — ONLY if bypassing the room-password proxy (e.g. CI/self-host). Normally fetched at runtime from WORKSHOP_ROOM_PASSWORD; leave unset"
+
+echo "[Phase 3] GitHub MCP (BMAD 'bad crew')"
 check_either GH_PAT GITHUB_TOKEN       required "GitHub token for the GitHub MCP; fine-grained PAT for the write demo (Codespaces injects GITHUB_TOKEN)"
 check GH_DEMO_REPO required "BMAD/'bad crew' demo repo (owner/repo) the GitHub MCP writes to"
 

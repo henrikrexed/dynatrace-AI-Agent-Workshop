@@ -172,7 +172,7 @@ t2_secrets() {
 
   # (a) Matrix coverage — every §3 contract var must be referenced by the script.
   local required_vars=(DT_TENANT_URL DT_API_TOKEN DT_PLATFORM_TOKEN DT_ENVIRONMENT \
-    DEEPSEEK_API_KEY LLM_API_KEY GH_PAT GITHUB_TOKEN GH_DEMO_REPO \
+    WORKSHOP_ROOM_PASSWORD DEEPSEEK_API_KEY LLM_API_KEY GH_PAT GITHUB_TOKEN GH_DEMO_REPO \
     DT_ENV_URL DT_ENVIRONMENT_URL DYNATRACE_API_TOKEN DT_EVAL_SERVICE \
     OPENAI_API_KEY ANTHROPIC_API_KEY)
   local uncovered=()
@@ -183,7 +183,7 @@ t2_secrets() {
   local leak_out
   leak_out=$(DT_TENANT_URL="${canary}_url" DT_API_TOKEN="${canary}_dt0c01" \
     DT_PLATFORM_TOKEN="${canary}_dt0s16" DT_ENVIRONMENT="${canary}_apps" \
-    DEEPSEEK_API_KEY="${canary}_sk" GH_PAT="${canary}_ghp" \
+    WORKSHOP_ROOM_PASSWORD="${canary}_pw" DEEPSEEK_API_KEY="${canary}_sk" GH_PAT="${canary}_ghp" \
     GH_DEMO_REPO="${canary}_repo" DYNATRACE_API_TOKEN="${canary}_evt" \
     bash "$cs" 2>&1)
   local leaked=0; grep -q "$canary" <<< "$leak_out" && leaked=1
@@ -201,7 +201,9 @@ t2_secrets() {
   secret_set DT_TENANT_URL     || req_missing+=(DT_TENANT_URL)
   secret_set DT_API_TOKEN      || req_missing+=(DT_API_TOKEN)
   secret_set DT_PLATFORM_TOKEN || req_missing+=(DT_PLATFORM_TOKEN)
-  either_set DEEPSEEK_API_KEY LLM_API_KEY || req_missing+=("DEEPSEEK_API_KEY|LLM_API_KEY")
+  # Model access: the room password (dispensed virtual key) OR a direct key (CI/self-host bypass).
+  secret_set WORKSHOP_ROOM_PASSWORD || either_set DEEPSEEK_API_KEY LLM_API_KEY \
+    || req_missing+=("WORKSHOP_ROOM_PASSWORD (or direct DEEPSEEK_API_KEY|LLM_API_KEY)")
   either_set GH_PAT GITHUB_TOKEN      || req_missing+=("GH_PAT|GITHUB_TOKEN")
   secret_set GH_DEMO_REPO  || req_missing+=(GH_DEMO_REPO)
 
@@ -282,7 +284,8 @@ t5_phase3() {
   either_set GH_PAT GITHUB_TOKEN || miss+=("GH_PAT|GITHUB_TOKEN")
   secret_set GH_DEMO_REPO        || miss+=(GH_DEMO_REPO)
   secret_set DT_PLATFORM_TOKEN       || miss+=(DT_PLATFORM_TOKEN)
-  either_set DEEPSEEK_API_KEY LLM_API_KEY || miss+=("DEEPSEEK_API_KEY|LLM_API_KEY")
+  secret_set WORKSHOP_ROOM_PASSWORD || either_set DEEPSEEK_API_KEY LLM_API_KEY \
+    || miss+=("WORKSHOP_ROOM_PASSWORD (or direct DEEPSEEK_API_KEY|LLM_API_KEY)")
   if [ ${#miss[@]} -ne 0 ]; then
     record T5 "agents + MCP live calls" PARTIAL \
       "cluster present but secrets unset: ${miss[*]} — install-agents.sh installs the MCP servers/agents but GitHub+Dynatrace MCP auth and a kagent answer need live tokens. Set §3 secrets for a live run"
