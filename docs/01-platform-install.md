@@ -20,7 +20,7 @@ Set these as **Codespace secrets** and rebuild/restart:
 | `DT_TENANT_URL` | Dynatrace Operator + OTLP export |
 | `DT_API_TOKEN` | OTLP export + DynaKube `dataIngestToken` (ingest) |
 | `DYNATRACE_API_TOKEN` | DynaKube operator `apiToken` (k8s-monitoring) + dt-evals |
-| `LLM_API_KEY` *(or `OPENAI_API_KEY`)* | kagent model provider (needed in module 02) |
+| `WORKSHOP_ROOM_PASSWORD` | kagent model provider — exchanged at startup for a proxy endpoint + key (needed in module 02) |
 
 Missing secrets degrade gracefully — a component is skipped or warns, the install
 never crashes.

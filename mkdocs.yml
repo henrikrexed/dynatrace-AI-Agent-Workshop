@@ -67,3 +67,4 @@ nav:
   - "06 — Evaluate (Phoenix + dt-evals)": 06-evaluate.md
   - "07 — Optimize": 07-optimize.md
   - Troubleshooting: troubleshooting.md
+  - "Host runbook (facilitator)": host-runbook.md

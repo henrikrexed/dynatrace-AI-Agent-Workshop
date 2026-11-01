@@ -99,3 +99,8 @@ into committed manifests or the devcontainer image.
 Rotate in the GitHub Codespaces secrets UI, then rebuild the Codespace
 (`Codespaces: Rebuild Container`). Re-run `bash .devcontainer/bootstrap/check-secrets.sh`
 to confirm the new values are visible.
+
+> **Facilitators:** the room password is rotated and the model proxy is
+> started/torn down on the host side — see the **Host runbook (facilitator)**
+> (`docs/host-runbook.md`) for the pre-session and post-session (revoke keys →
+> stop funnel → destroy LXC) checklist.

@@ -289,9 +289,10 @@ cd evals/dt-evals
 ```
 
 The `.env` needs a dedicated `DYNATRACE_API_TOKEN` (`dt0c01` with
-`storage:spans:read` + `storage:events:write`), `DT_ENVIRONMENT_URL`, a judge
-`OPENAI_API_KEY` (a DeepSeek key works), and `DT_EVAL_SERVICE` — **discover** that
-service name with DQL, don't guess it:
+`storage:spans:read` + `storage:events:write`), `DT_ENVIRONMENT_URL`, and
+`DT_EVAL_SERVICE` — **discover** that service name with DQL, don't guess it. The
+judge key is supplied automatically by the room-password proxy
+(`WORKSHOP_ROOM_PASSWORD`), so you don't set `OPENAI_API_KEY` yourself:
 
 ```dql
 fetch spans, from: now() - 2h
