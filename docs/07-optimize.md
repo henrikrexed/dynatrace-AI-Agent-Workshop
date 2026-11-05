@@ -540,8 +540,8 @@ the workshop ships two more dtctl-ready artifacts in
 [`cluster/dynatrace/optimization/`](https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/tree/main/cluster/dynatrace/optimization)
 that turn the optimization loop into an automated gate:
 
-**A Site Reliability Guardian** (`ai-agent-quality-cost.guardian.yaml`) — three
-DQL objectives over the crew's `call_llm` spans, so a regression fails loudly:
+**A Site Reliability Guardian** — three DQL objectives over the crew's `call_llm`
+spans, so a regression fails loudly:
 
 | Objective | SLI | Rule | target / warning |
 |-----------|-----|------|------------------|
@@ -549,10 +549,55 @@ DQL objectives over the crew's `call_llm` spans, so a regression fails loudly:
 | Loop efficiency | avg hops / task | `≤` | 5 / 4 |
 | Answer substance (quality proxy) | avg output tokens / call | `≥` | 200 / 300 |
 
-```bash
-dtctl create settings -f ai-agent-quality-cost.guardian.yaml \
-  --schema app:dynatrace.site.reliability.guardian:guardians --scope environment
+**Build it by hand** so you own each objective. In Dynatrace, open the **Site
+Reliability Guardian** app → **+ Guardian** → pick the **DQL (custom)** template.
+Name it `AI Agent Quality & Cost`, then add the three objectives one at a time —
+for each: paste the DQL below, choose the comparison operator, and set **target**
++ **warning** from the table above.
+
+*Objective 1 — Cost per LLM call* · operator **≤ (less than or equal)** · target
+`20000` · warning `18000`:
+
 ```
+fetch spans, from: now()-1d
+| filter service.namespace == "kagent" and span.name == "call_llm" and isNotNull(gen_ai.usage.input_tokens)
+| summarize sli = round(avg(gen_ai.usage.input_tokens))
+| fields sli
+```
+
+*Objective 2 — Loop efficiency* · operator **≤ (less than or equal)** · target
+`5` · warning `4`:
+
+```
+fetch spans, from: now()-1d
+| filter service.namespace == "kagent" and span.name == "call_llm"
+| summarize calls = count(), by:{gen_ai.task.id}
+| summarize sli = round(avg(calls), decimals: 2)
+| fields sli
+```
+
+*Objective 3 — Answer substance (quality proxy)* · operator **≥ (greater than or
+equal)** · target `200` · warning `300`:
+
+```
+fetch spans, from: now()-1d
+| filter service.namespace == "kagent" and span.name == "call_llm" and isNotNull(gen_ai.usage.output_tokens)
+| summarize sli = round(avg(gen_ai.usage.output_tokens))
+| fields sli
+```
+
+**Save**, then **Validate** (run once) to see each objective pass/fail over the
+last 24h. Note your new guardian's **objectId** — the scheduled workflow below
+references it.
+
+??? tip "Fast path / facilitator — deploy the same guardian with dtctl"
+    The repo ships the identical guardian as dtctl-ready YAML
+    (`ai-agent-quality-cost.guardian.yaml`), if you'd rather apply it than build
+    it in the UI:
+    ```bash
+    dtctl create settings -f ai-agent-quality-cost.guardian.yaml \
+      --schema app:dynatrace.site.reliability.guardian:guardians --scope environment
+    ```
 
 The quality proxy backstops the cost cuts — an agent that got "cheaper" by
 emitting truncated answers trips it. For the full **LLM-judge** quality gate,

@@ -463,14 +463,47 @@ both telemetry, the last artifact makes the loop **continuous**: a scheduled
 Dynatrace workflow runs a Site Reliability Guardian daily, so a cost or quality
 regression fails loudly on its own.
 
-**Do it.** Deploy the guardian, then the workflow that runs it:
+**Do it.** Build the guardian **by hand** in the UI, then deploy the workflow that
+runs it. In Dynatrace, open the **Site Reliability Guardian** app → **+ Guardian**
+→ **DQL (custom)**, name it `AI Agent Quality & Cost`, and add the three objectives
+below — paste each DQL, pick the operator, set target + warning:
+
+```
+fetch spans, from: now()-1d
+| filter service.namespace == "kagent" and span.name == "call_llm" and isNotNull(gen_ai.usage.input_tokens)
+| summarize sli = round(avg(gen_ai.usage.input_tokens))
+| fields sli
+```
+*Cost per LLM call* · **≤** · target `20000` · warning `18000`.
+
+```
+fetch spans, from: now()-1d
+| filter service.namespace == "kagent" and span.name == "call_llm"
+| summarize calls = count(), by:{gen_ai.task.id}
+| summarize sli = round(avg(calls), decimals: 2)
+| fields sli
+```
+*Loop efficiency* · **≤** · target `5` · warning `4`.
+
+```
+fetch spans, from: now()-1d
+| filter service.namespace == "kagent" and span.name == "call_llm" and isNotNull(gen_ai.usage.output_tokens)
+| summarize sli = round(avg(gen_ai.usage.output_tokens))
+| fields sli
+```
+*Answer substance (quality proxy)* · **≥** · target `200` · warning `300`.
+
+**Save** → **Validate** (run once) to see pass/fail over the last 24h, then grab
+your new guardian's **objectId**. Deploy the scheduled workflow via `dtctl` — it
+references the guardian by `objectId`, so repoint it to *yours*:
 
 ```bash
 cd cluster/dynatrace/optimization
-dtctl create settings -f ai-agent-quality-cost.guardian.yaml \
-  --schema app:dynatrace.site.reliability.guardian:guardians --scope environment
 dtctl create workflow -f ai-agent-optimization.workflow.yaml
 ```
+
+> Facilitator fast path: the repo ships the identical guardian as dtctl-ready
+> YAML — `dtctl create settings -f ai-agent-quality-cost.guardian.yaml --schema app:dynatrace.site.reliability.guardian:guardians --scope environment`.
 
 **Apply this.** The guardian holds three DQL objectives over the crew's `call_llm`
 spans — **cost per call** (avg input tokens ≤ 20k), **loop efficiency** (avg hops ≤
