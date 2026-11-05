@@ -1451,8 +1451,8 @@ than the costly one that's right.</p>
 the workshop ships two more dtctl-ready artifacts in
 <a href="https://github.com/henrikrexed/dynatrace-AI-Agent-Workshop/tree/main/cluster/dynatrace/optimization"><code>cluster/dynatrace/optimization/</code></a>
 that turn the optimization loop into an automated gate:</p>
-<p><strong>A Site Reliability Guardian</strong> (<code>ai-agent-quality-cost.guardian.yaml</code>) — three
-DQL objectives over the crew's <code>call_llm</code> spans, so a regression fails loudly:</p>
+<p><strong>A Site Reliability Guardian</strong> — three DQL objectives over the crew's <code>call_llm</code>
+spans, so a regression fails loudly:</p>
 <table>
 <thead>
 <tr>
@@ -1483,16 +1483,52 @@ DQL objectives over the crew's <code>call_llm</code> spans, so a regression fail
 </tr>
 </tbody>
 </table>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>dtctl<span class="w"> </span>create<span class="w"> </span>settings<span class="w"> </span>-f<span class="w"> </span>ai-agent-quality-cost.guardian.yaml<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span>--schema<span class="w"> </span>app:dynatrace.site.reliability.guardian:guardians<span class="w"> </span>--scope<span class="w"> </span>environment
+<p><strong>Build it by hand</strong> so you own each objective. In Dynatrace, open the <strong>Site
+Reliability Guardian</strong> app → <strong>+ Guardian</strong> → pick the <strong>DQL (custom)</strong> template.
+Name it <code>AI Agent Quality &amp; Cost</code>, then add the three objectives one at a time —
+for each: paste the DQL below, choose the comparison operator, and set <strong>target</strong>
++ <strong>warning</strong> from the table above.</p>
+<p><em>Objective 1 — Cost per LLM call</em> · operator <strong>≤ (less than or equal)</strong> · target
+<code>20000</code> · warning <code>18000</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>fetch spans, from: now()-1d
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>| filter service.namespace == "kagent" and span.name == "call_llm" and isNotNull(gen_ai.usage.input_tokens)
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>| summarize sli = round(avg(gen_ai.usage.input_tokens))
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>| fields sli
 </code></pre></div>
+<p><em>Objective 2 — Loop efficiency</em> · operator <strong>≤ (less than or equal)</strong> · target
+<code>5</code> · warning <code>4</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>fetch spans, from: now()-1d
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>| filter service.namespace == "kagent" and span.name == "call_llm"
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>| summarize calls = count(), by:{gen_ai.task.id}
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>| summarize sli = round(avg(calls), decimals: 2)
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>| fields sli
+</code></pre></div>
+<p><em>Objective 3 — Answer substance (quality proxy)</em> · operator <strong>≥ (greater than or
+equal)</strong> · target <code>200</code> · warning <code>300</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>fetch spans, from: now()-1d
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>| filter service.namespace == "kagent" and span.name == "call_llm" and isNotNull(gen_ai.usage.output_tokens)
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>| summarize sli = round(avg(gen_ai.usage.output_tokens))
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>| fields sli
+</code></pre></div>
+<p><strong>Save</strong>, then <strong>Validate</strong> (run once) to see each objective pass/fail over the
+last 24h. Note your new guardian's <strong>objectId</strong> — the scheduled workflow below
+references it.</p>
+<details class="tip">
+<summary>Fast path / facilitator — deploy the same guardian with dtctl</summary>
+<p>The repo ships the identical guardian as dtctl-ready YAML
+(<code>ai-agent-quality-cost.guardian.yaml</code>), if you'd rather apply it than build
+it in the UI:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>dtctl<span class="w"> </span>create<span class="w"> </span>settings<span class="w"> </span>-f<span class="w"> </span>ai-agent-quality-cost.guardian.yaml<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span>--schema<span class="w"> </span>app:dynatrace.site.reliability.guardian:guardians<span class="w"> </span>--scope<span class="w"> </span>environment
+</code></pre></div></p>
+</details>
 <p>The quality proxy backstops the cost cuts — an agent that got "cheaper" by
 emitting truncated answers trips it. For the full <strong>LLM-judge</strong> quality gate,
 pair the guardian with the dt-evals suite (module 06).</p>
 <p><strong>A scheduled Workflow</strong> (<code>ai-agent-optimization.workflow.yaml</code>) runs that
 guardian daily over the last 24h (schedule ships disabled — flip
 <code>trigger.schedule.isActive: true</code> to go continuous):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>dtctl<span class="w"> </span>create<span class="w"> </span>workflow<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization.workflow.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>dtctl<span class="w"> </span>create<span class="w"> </span>workflow<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization.workflow.yaml
 </code></pre></div>
 <p>No <code>dtctl</code>? Upload the UI-importable workflow JSON
 (<a href="../assets/optimization/ai-agent-optimization.workflow.json">ai-agent-optimization.workflow.json</a>)

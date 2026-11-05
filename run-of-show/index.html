@@ -1232,12 +1232,39 @@ is where to cut. This ranking is the raw material for the cuts in module 07.</p>
 both telemetry, the last artifact makes the loop <strong>continuous</strong>: a scheduled
 Dynatrace workflow runs a Site Reliability Guardian daily, so a cost or quality
 regression fails loudly on its own.</p>
-<p><strong>Do it.</strong> Deploy the guardian, then the workflow that runs it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nb">cd</span><span class="w"> </span>cluster/dynatrace/optimization
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>dtctl<span class="w"> </span>create<span class="w"> </span>settings<span class="w"> </span>-f<span class="w"> </span>ai-agent-quality-cost.guardian.yaml<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">  </span>--schema<span class="w"> </span>app:dynatrace.site.reliability.guardian:guardians<span class="w"> </span>--scope<span class="w"> </span>environment
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>dtctl<span class="w"> </span>create<span class="w"> </span>workflow<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization.workflow.yaml
+<p><strong>Do it.</strong> Build the guardian <strong>by hand</strong> in the UI, then deploy the workflow that
+runs it. In Dynatrace, open the <strong>Site Reliability Guardian</strong> app → <strong>+ Guardian</strong>
+→ <strong>DQL (custom)</strong>, name it <code>AI Agent Quality &amp; Cost</code>, and add the three objectives
+below — paste each DQL, pick the operator, set target + warning:</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>fetch spans, from: now()-1d
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>| filter service.namespace == "kagent" and span.name == "call_llm" and isNotNull(gen_ai.usage.input_tokens)
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>| summarize sli = round(avg(gen_ai.usage.input_tokens))
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>| fields sli
 </code></pre></div>
+<em>Cost per LLM call</em> · <strong>≤</strong> · target <code>20000</code> · warning <code>18000</code>.</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>fetch spans, from: now()-1d
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>| filter service.namespace == "kagent" and span.name == "call_llm"
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>| summarize calls = count(), by:{gen_ai.task.id}
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>| summarize sli = round(avg(calls), decimals: 2)
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>| fields sli
+</code></pre></div>
+<em>Loop efficiency</em> · <strong>≤</strong> · target <code>5</code> · warning <code>4</code>.</p>
+<p><div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>fetch spans, from: now()-1d
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>| filter service.namespace == "kagent" and span.name == "call_llm" and isNotNull(gen_ai.usage.output_tokens)
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>| summarize sli = round(avg(gen_ai.usage.output_tokens))
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>| fields sli
+</code></pre></div>
+<em>Answer substance (quality proxy)</em> · <strong>≥</strong> · target <code>200</code> · warning <code>300</code>.</p>
+<p><strong>Save</strong> → <strong>Validate</strong> (run once) to see pass/fail over the last 24h, then grab
+your new guardian's <strong>objectId</strong>. Deploy the scheduled workflow via <code>dtctl</code> — it
+references the guardian by <code>objectId</code>, so repoint it to <em>yours</em>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="nb">cd</span><span class="w"> </span>cluster/dynatrace/optimization
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>dtctl<span class="w"> </span>create<span class="w"> </span>workflow<span class="w"> </span>-f<span class="w"> </span>ai-agent-optimization.workflow.yaml
+</code></pre></div>
+<blockquote>
+<p>Facilitator fast path: the repo ships the identical guardian as dtctl-ready
+YAML — <code>dtctl create settings -f ai-agent-quality-cost.guardian.yaml --schema app:dynatrace.site.reliability.guardian:guardians --scope environment</code>.</p>
+</blockquote>
 <p><strong>Apply this.</strong> The guardian holds three DQL objectives over the crew's <code>call_llm</code>
 spans — <strong>cost per call</strong> (avg input tokens ≤ 20k), <strong>loop efficiency</strong> (avg hops ≤
 5), and an <strong>answer-substance</strong> quality proxy (avg output tokens ≥ 200) so an agent
