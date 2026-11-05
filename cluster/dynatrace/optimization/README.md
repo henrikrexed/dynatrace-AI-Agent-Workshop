@@ -127,6 +127,20 @@ emitting empty/truncated answers trips it. For the **LLM-judge** quality gate
 suite ([`evals/dt-evals`](../../../evals/dt-evals)) — that is the complementary
 gate the workflow narrative references.
 
+### Create the guardian manually (workshop path)
+
+The `dtctl create settings` one-liner above is the fast path. In the workshop,
+attendees **build the guardian by hand** so they own each objective: open the
+**Site Reliability Guardian** app → **+ Guardian** → **DQL (custom)**, name it
+`AI Agent Quality & Cost`, then add the three objectives one at a time — paste
+each `dqlQuery` from `ai-agent-quality-cost.guardian.yaml` verbatim, pick the
+`comparisonOperator`, and set `target` + `warning` from the table above. **Save**,
+then **Validate** (run once) for a 24h pass/fail. The step-by-step UI walkthrough
+lives in [`docs/07-optimize.md` §4](../../../docs/07-optimize.md) and
+[`docs/run-of-show.md` Step 14](../../../docs/run-of-show.md). After manual
+creation, grab your own guardian `objectId` and repoint the workflow at it (step 3
+above).
+
 ## Tool-coverage lookup — never-called tools (ISI-6972)
 
 `tool-grants.lookup.json` is the source-of-truth table of every tool each agent
