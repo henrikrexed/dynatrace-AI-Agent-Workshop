@@ -259,6 +259,16 @@ Confirm kagent `otel.tracing` points at
 `otel-gateway-collector.opentelemetry-operator-system.svc:4317`, and that the
 tenant/token scopes include `openTelemetryTrace.ingest`.
 
+**`otel-gateway-collector` CrashLoopBackOff with no `dynatrace-otlp` secret.**
+Expected on a secret-less boot (no `DT_TENANT_URL`/`DT_API_TOKEN`): current
+`main` makes `cluster/install.sh` apply the Phoenix-only gateway variant
+(`cluster/otel/collector-gateway-phoenix-only.yaml`) when the secret is absent,
+so the collector starts and exports to Phoenix only (ISI-6869). If you applied
+the full `collector-gateway.yaml` by hand without the secret, re-run
+`bash cluster/install.sh` — or create the secret (`bash cluster/secrets.sh`)
+and restart the collector:
+`kubectl -n opentelemetry-operator-system rollout restart deploy/otel-gateway-collector`.
+
 **Gateway logs `HTTP Status Code 404` / `Unimplemented` exporting to Dynatrace.**
 The spans reach the collector but Dynatrace rejects the request:
 

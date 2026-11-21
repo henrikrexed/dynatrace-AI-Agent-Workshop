@@ -13,8 +13,12 @@
 #   otel-gateway-collector.opentelemetry-operator-system.svc.cluster.local:4317
 #
 # Dynatrace exporter credentials come from secret/dynatrace-otlp (created by
-# secrets.sh). If that secret is absent the exporter still renders but the
-# collector logs auth errors — Phoenix export keeps working regardless.
+# secrets.sh). This FULL variant REQUIRES that secret: when it is absent the
+# DT_OTLP_ENDPOINT/DT_API_TOKEN env vars are unset, ${env:DT_OTLP_ENDPOINT}
+# resolves to an empty endpoint, and the collector fails config resolution at
+# startup → CrashLoopBackOff (it does NOT degrade on its own; ISI-6869).
+# cluster/install.sh therefore applies collector-gateway-phoenix-only.yaml
+# (same collector, no Dynatrace exporter) when the secret is missing.
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
 metadata:
