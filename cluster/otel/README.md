@@ -51,8 +51,12 @@ Agents/workloads send OTLP to
 > this processor).
 
 Dynatrace export credentials come from `secret/dynatrace-otlp` (created by
-`secrets.sh`); if absent, Phoenix export keeps working and the collector just
-logs auth errors.
+`secrets.sh` only when `DT_TENANT_URL` + `DT_API_TOKEN` are set). If the secret
+is absent, `install.sh` applies `collector-gateway-phoenix-only.yaml` instead —
+a variant without the `otlphttp/dynatrace` exporter, so the collector still
+starts and Phoenix export keeps working (ISI-6869). Applying the full
+`collector-gateway.yaml` without the secret makes the collector fail startup
+(empty `${env:DT_OTLP_ENDPOINT}`) and CrashLoopBackOff.
 
 ## BindPlane — illustrated only
 

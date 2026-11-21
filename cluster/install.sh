@@ -130,6 +130,17 @@ if [ "$INSTALL_OTEL" = "true" ]; then
     --namespace opentelemetry-operator-system \
     -f "${SCRIPT_DIR}/otel/operator-values.yaml" --wait --timeout 5m
   kubectl -n opentelemetry-operator-system rollout status deploy/opentelemetry-operator --timeout=120s || warn "otel operator not ready"
+  # Pick the gateway variant (ISI-6869): the full collector-gateway.yaml needs
+  # secret/dynatrace-otlp (created by secrets.sh above only when DT_TENANT_URL +
+  # DT_API_TOKEN are set). Without the secret its ${env:DT_OTLP_ENDPOINT} resolves
+  # empty and the collector CrashLoopBackOffs, so fall back to the Phoenix-only
+  # variant (no Dynatrace exporter) — same Deployment/Service names.
+  if kubectl -n opentelemetry-operator-system get secret dynatrace-otlp >/dev/null 2>&1; then
+    GATEWAY_MANIFEST="${SCRIPT_DIR}/otel/collector-gateway.yaml"
+  else
+    GATEWAY_MANIFEST="${SCRIPT_DIR}/otel/collector-gateway-phoenix-only.yaml"
+    warn "secret/dynatrace-otlp absent (DT_TENANT_URL/DT_API_TOKEN unset) — applying the Phoenix-only gateway collector (no Dynatrace export)"
+  fi
   # Webhook needs a moment to register before the CR validates.
   # Render ${WORKSHOP_PREFIX} into the resource processor (k8s.cluster.name +
   # workshop.attendee) so this attendee's telemetry is isolated on the shared
@@ -137,10 +148,10 @@ if [ "$INSTALL_OTEL" = "true" ]; then
   # leaving the collector's own ${env:...} runtime refs intact. envsubst is
   # required here (WORKSHOP_PREFIX was already validated at the top of this script).
   if command -v envsubst >/dev/null; then
-    COLLECTOR_MANIFEST="$(envsubst '${WORKSHOP_PREFIX}' < "${SCRIPT_DIR}/otel/collector-gateway.yaml")"
+    COLLECTOR_MANIFEST="$(envsubst '${WORKSHOP_PREFIX}' < "$GATEWAY_MANIFEST")"
   else
     warn "envsubst not found — collector will be applied with an unresolved \${WORKSHOP_PREFIX}; install gettext and re-run"
-    COLLECTOR_MANIFEST="$(cat "${SCRIPT_DIR}/otel/collector-gateway.yaml")"
+    COLLECTOR_MANIFEST="$(cat "$GATEWAY_MANIFEST")"
   fi
   for i in {1..15}; do
     printf '%s\n' "$COLLECTOR_MANIFEST" | kubectl apply -f - 2>/dev/null && { ok "OpenTelemetryCollector applied (workshop.attendee=${WORKSHOP_PREFIX})"; break; }
